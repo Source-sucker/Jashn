@@ -48,3 +48,33 @@ TECH
 
 ### 4. `app/prompts/replan_explain_v1.txt`
 - **Objective**: Empathetically explain engine-calculated budget cuts, date changes, and mathematical trade-offs for the Family Organizer.
+
+---
+
+## Version 2: Stage 1.5 Hardening Prompt
+```
+Stage 1.5 hardening for Jashn. Stay on main. Do NOT add features. Commit each step separately.
+
+1. Frontend checks (browser automation is unavailable): add tests/frontend_tests/test_modules.mjs that
+   (a) syntax-parses every web/js file, (b) verifies every relative import resolves and every named
+   import is exported, (c) verifies element ids referenced in JS exist in web/index.html or are
+   created by the views. Run it in CI.
+2. CSP audit: compare the Content-Security-Policy in app/security.py against web/index.html, the CSS,
+   the inline SVG donut and all JS modules. Ensure nothing is blocked (inline styles, style attributes,
+   data: URIs, fonts, ES modules). Do not use 'unsafe-inline' for scripts; remove inline <script> and
+   on* handlers instead. Add tests asserting the CSP header and no inline scripts in index.html.
+3. Rate limiter behind a proxy: use the real client IP from X-Forwarded-For only when
+   TRUSTED_PROXY_COUNT is set (default safe), evict stale IP entries to cap memory, and add test
+   covering trusted vs untrusted forward headers.
+4. Real Gemini smoke test: add scripts/smoke_gemini.py that exercises the service layer with real
+   inputs when GEMINI_API_KEY is present, prints the model name, latency, and whether output passed
+   schema validation on the first try. Do not commit secrets. Document which model was tested.
+5. Text clean-up: remove raw LaTeX/markdown artifacts (e.g. $N$) from UI strings/API responses; label
+   trade-off percentages as estimates with a plain-language assumption note.
+6. Coverage: enforce --cov-fail-under=85 on app/services and app/api in CI. Expand tests on the
+   weakest modules.
+7. Docs/README: add table "Where AI is used vs where deterministic code decides", Assumptions list,
+   Screenshots section placeholder; append user prompts to docs/PROMPT_LOG.md.
+8. Verify ruff, pytest, node --test pass, git status is clean on main, push to origin main. Report
+   what was verified and what was NOT (be honest about browser automation).
+```

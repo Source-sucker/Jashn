@@ -12,7 +12,7 @@
 
 ---
 
-## 2. Where Gemini is Used vs Where Deterministic Code Takes Over
+## 2. Where AI is used vs where deterministic code decides
 
 | Capability | Engine Type | Technology | Why This Division Matters |
 |---|---|---|---|
@@ -66,14 +66,49 @@ graph TD
 
 ---
 
-## 4. Key Assumptions & Disclaimers
-1. **Illustrative Estimates:** All allocated budget amounts and vendor category figures are planning estimates based on Indian market benchmarks, not confirmed vendor quotes.
-2. **Vendor Privacy & Safety:** Jashn never invents real business names, contact numbers, or availability. Users record their own vendor interactions in the private quote tracker.
-3. **Stateless Server:** No user data or uploaded plans are stored in backend databases. All session data resides in the user's browser `localStorage` (schema version `v1`) and can be exported as JSON at any time.
+## 4. Assumptions & Practical Planning Baselines
+
+Jashn's deterministic calculations and trade-off formulas operate under explicit, transparent assumptions:
+
+1. **Market Benchmark Baselines:** Category percentages are calibrated to typical Indian celebration distributions (e.g. Catering & Venue typically command 55–65% of wedding allocations; Entertainment/Activities command 25–35% of birthday celebrations).
+2. **Catering Per-Plate Thresholds:**
+   - Tier 1 (Metro cities like Mumbai, Delhi, Bengaluru): ₹1,200/guest minimum viable benchmark.
+   - Tier 2/3 (Lucknow, Jaipur, Pune, Indore, etc.): ₹800/guest minimum viable benchmark.
+   - If total budget divided by guest count falls below this floor, Jashn transparently marks the budget status as `unrealistic` or `tight` rather than silently cutting core hospitality categories.
+3. **Emergency Contingency Floor:** Every budget reserves a mandatory 5–10% contingency reserve (`contingency` category) that cannot be edited or zeroed out during initial allocation.
+4. **Non-Guaranteed Planning Estimates:** All budget allocations, category amounts, and trade-off savings are planning estimates, not legally binding vendor commitments.
+5. **Vendor Privacy & Anti-Hallucination Policy:** Jashn never manufactures fake business names, fake reviews, or fake phone numbers. Vendors are treated as categories paired with critical negotiation questions.
+6. **Data Sovereignty:** The backend server is 100% stateless. No attendee lists, contact numbers, or financial plans are persisted in remote databases; all data resides strictly on the user's browser in schema-versioned (`v1`) `localStorage`.
 
 ---
 
-## 5. Local Setup & Running
+## 5. Screenshots & User Interface Walkthrough
+
+*(Visual demo snapshots of the Jashn interface in standard high-contrast warm indigo & festive marigold palette)*
+
+- **Screen 1: Conversational & Structured Intake (`/`)**
+  - *Description:* Allows the Family Organizer to enter freeform text in Hindi/English or structured fields. Detects missing critical fields and prompts with up to 3 polite clarifying questions.
+  - *Placeholder:* `[ Screenshot: Conversational Intake View with Natural Story & Clarifying Questions ]`
+
+- **Screen 2: Executive Dashboard & Interactive SVG Budget Donut**
+  - *Description:* Displays high-level plan health, per-guest spending breakdown, and an accessible, responsive SVG donut chart showing exact category rupee allocations.
+  - *Placeholder:* `[ Screenshot: Dashboard Overview & Dynamic SVG Budget Donut ]`
+
+- **Screen 3: Category Allocation & Lock Controls**
+  - *Description:* Allows organizers to lock confirmed category expenses (e.g. ₹3,50,000 for Venue) while the engine auto-distributes the remaining funds across unlocked categories to maintain the exact total.
+  - *Placeholder:* `[ Screenshot: Budget Category Breakdown with Lock Toggle ]`
+
+- **Screen 4: Backward-Scheduled Timeline & Rush Compression**
+  - *Description:* Tasks mapped backwards from event date with urgency tags, dependency warnings, and completed task checkboxes.
+  - *Placeholder:* `[ Screenshot: Backward Timeline with Rush Badges & Phased Checklists ]`
+
+- **Screen 5: Instant Replanning & Trade-Off Dialog**
+  - *Description:* Triggered when budget drops (e.g. -50%) or date is moved earlier. Displays clean diffs and 2–3 engine-calculated trade-offs with exact rupee savings.
+  - *Placeholder:* `[ Screenshot: Replan Modal showing Diff Summary and 3 Calculated Trade-off Cards ]`
+
+---
+
+## 6. Local Setup & Running
 
 ### Prerequisites
 - Python 3.12+ (tested with Python 3.12 and 3.13)
@@ -101,11 +136,11 @@ Open your browser at **`http://localhost:8000`**.
 
 ---
 
-## 6. Running Tests & Quality Checks
+## 7. Running Tests & Quality Checks
 
-### Run Pytest Suite with Coverage (Target >= 85% on Services)
+### Run Pytest Suite with Coverage Floor (Target >= 85% on Services)
 ```bash
-pytest --cov=app/services --cov=app/api -v
+pytest --cov=app/services --cov=app/api --cov-fail-under=85 -v
 ```
 
 ### Run Ruff Linter
@@ -113,17 +148,18 @@ pytest --cov=app/services --cov=app/api -v
 ruff check app tests
 ```
 
-### Run Frontend Helper Unit Tests (Node:test)
+### Run Frontend Unit Tests (Node:test)
 ```bash
-node --test tests/frontend_tests/test_store_helpers.mjs
+node --test tests/frontend_tests/*.mjs
 ```
 
 ---
 
-## 7. Security & Accessibility (WCAG 2.1 AA)
+## 8. Security & Accessibility (WCAG 2.1 AA)
 - **Security:**
-  - In-memory sliding-window IP rate limiter (`RATE_LIMIT_PER_MIN`).
+  - In-memory sliding-window IP rate limiter (`RATE_LIMIT_PER_MIN`) with proxy hop resolution (`TRUSTED_PROXY_COUNT`) and automatic memory eviction.
   - Strict security headers (`Content-Security-Policy`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`).
+  - No `'unsafe-inline'` script execution.
   - Body payload size capped at 1 MB.
   - User text treated strictly as raw data; prompt injection payloads are blocked at schema and prompt boundary.
   - Zero XSS risk: UI inserts dynamic content via `textContent` rather than `innerHTML`.
@@ -136,6 +172,6 @@ node --test tests/frontend_tests/test_store_helpers.mjs
 
 ---
 
-## 8. Known Limitations
+## 9. Known Limitations
 - Multi-day multi-city logistics (e.g. destination weddings spanning 3 cities) are modeled as single consolidated event budgets.
 - Currencies are strictly in Indian Rupees (INR); multi-currency conversion is out of scope.
