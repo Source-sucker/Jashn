@@ -84,27 +84,27 @@ Jashn's deterministic calculations and trade-off formulas operate under explicit
 
 ## 5. Screenshots & User Interface Walkthrough
 
-*(Visual demo snapshots of the Jashn interface in standard high-contrast warm indigo & festive marigold palette)*
+*(Visual snapshots of the Jashn interface in standard high-contrast warm indigo & festive marigold palette)*
 
-- **Screen 1: Conversational & Structured Intake (`/`)**
-  - *Description:* Allows the Family Organizer to enter freeform text in Hindi/English or structured fields. Detects missing critical fields and prompts with up to 3 polite clarifying questions.
-  - *Placeholder:* `[ Screenshot: Conversational Intake View with Natural Story & Clarifying Questions ]`
+### 1. Executive Dashboard & Interactive SVG Budget Donut
+Displays high-level plan health, per-guest spending breakdown, countdown, and an accessible, responsive SVG donut chart showing exact category rupee allocations.
 
-- **Screen 2: Executive Dashboard & Interactive SVG Budget Donut**
-  - *Description:* Displays high-level plan health, per-guest spending breakdown, and an accessible, responsive SVG donut chart showing exact category rupee allocations.
-  - *Placeholder:* `[ Screenshot: Dashboard Overview & Dynamic SVG Budget Donut ]`
+![Executive Dashboard and Budget Donut](docs/screenshots/01_dashboard_overview.png)
 
-- **Screen 3: Category Allocation & Lock Controls**
-  - *Description:* Allows organizers to lock confirmed category expenses (e.g. ₹3,50,000 for Venue) while the engine auto-distributes the remaining funds across unlocked categories to maintain the exact total.
-  - *Placeholder:* `[ Screenshot: Budget Category Breakdown with Lock Toggle ]`
+### 2. Category Allocation & Lock Controls
+Allows organizers to lock confirmed category expenses (e.g., Venue or Catering) while the deterministic engine auto-distributes remaining funds across unlocked categories to maintain the exact rupee total.
 
-- **Screen 4: Backward-Scheduled Timeline & Rush Compression**
-  - *Description:* Tasks mapped backwards from event date with urgency tags, dependency warnings, and completed task checkboxes.
-  - *Placeholder:* `[ Screenshot: Backward Timeline with Rush Badges & Phased Checklists ]`
+![Budget Category Breakdown](docs/screenshots/02_budget_breakdown.png)
 
-- **Screen 5: Instant Replanning & Trade-Off Dialog**
-  - *Description:* Triggered when budget drops (e.g. -50%) or date is moved earlier. Displays clean diffs and 2–3 engine-calculated trade-offs with exact rupee savings.
-  - *Placeholder:* `[ Screenshot: Replan Modal showing Diff Summary and 3 Calculated Trade-off Cards ]`
+### 3. Backward-Scheduled Timeline & Rush Compression
+Tasks mapped backwards from event date with urgency tags, dependency warnings, and completed task preservation.
+
+![Backward Scheduled Timeline](docs/screenshots/03_timeline.png)
+
+### 4. Instant Replanning & Trade-Off Dialog
+Triggered when budget drops (e.g. -50%) or date is moved earlier. Displays clean diffs and 3 engine-calculated trade-offs with exact rupee savings.
+
+![Instant Replanning and Trade-Off Dialog](docs/screenshots/04_replan_modal.png)
 
 ---
 
