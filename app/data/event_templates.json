@@ -1,0 +1,621 @@
+{
+  "wedding": {
+    "label": "Wedding / Reception",
+    "standard_lead_days": 150,
+    "contingency_pct": 0.08,
+    "benchmark_per_guest": {
+      "tier1": 1500,
+      "tier2": 1000,
+      "tier3": 750
+    },
+    "category_weights": {
+      "catering": 0.36,
+      "venue": 0.22,
+      "decor_styling": 0.14,
+      "photography_videography": 0.10,
+      "attire_grooming": 0.08,
+      "entertainment_music": 0.05,
+      "invitations_gifts": 0.05
+    },
+    "per_head_categories": ["catering", "invitations_gifts"],
+    "floors": {
+      "catering": 0.25,
+      "venue": 0.15,
+      "decor_styling": 0.08,
+      "photography_videography": 0.06,
+      "attire_grooming": 0.04,
+      "entertainment_music": 0.03,
+      "invitations_gifts": 0.02
+    },
+    "vendor_categories": [
+      {
+        "id": "catering",
+        "name": "Catering & Beverages",
+        "default_questions": [
+          "Does the per-plate cost include live counter setups and basic service staff?",
+          "What is the policy for food wastage or unexpected additional guests (e.g. +10% buffer)?",
+          "Can you accommodate pure vegetarian, Jain, or specific allergy requirements separately?",
+          "Are chafing dishes, premium cutlery, and drinking water jars included in the quote?"
+        ]
+      },
+      {
+        "id": "venue",
+        "name": "Venue & Banquet",
+        "default_questions": [
+          "What is the sound curfew and generator backup policy during peak hours?",
+          "Are there mandatory in-house vendor restrictions (decor, sound, DJ, catering)?",
+          "What are the check-in and checkout timings, and are bridal rooms provided complimentary?",
+          "Is valet parking available and what are the municipal clearance requirements?"
+        ]
+      },
+      {
+        "id": "decor_styling",
+        "name": "Decor & Florals",
+        "default_questions": [
+          "Will seasonal/local flowers be used to optimize freshness and cost?",
+          "Does the quote include ambient lighting, fairy lights, and stage focus lights?",
+          "What is the teardown policy and is there a security deposit for structural props?"
+        ]
+      },
+      {
+        "id": "photography_videography",
+        "name": "Photography & Video",
+        "default_questions": [
+          "How many candid vs traditional shooters and drone operators will be on-site?",
+          "What is the exact deliverable timeline for the teaser, traditional video, and raw photos?",
+          "Will there be travel/accommodation costs billed separately if outside the city center?"
+        ]
+      },
+      {
+        "id": "attire_grooming",
+        "name": "Bridal/Groom Attire & Makeup",
+        "default_questions": [
+          "How many trials or fittings are included in the bridal/groom styling package?",
+          "Does the makeup artist package include hair styling, draping, and touch-up staff on-site?",
+          "What is the overtime charge if ceremonies run beyond scheduled hours?"
+        ]
+      },
+      {
+        "id": "entertainment_music",
+        "name": "Music, DJ & Entertainment",
+        "default_questions": [
+          "Do you have the necessary public performance licenses (PPL/IPRS) covered?",
+          "Can we provide a custom do-not-play list and cultural folk music preferences?",
+          "What audio equipment (mics, monitors, speakers) is included in the package?"
+        ]
+      },
+      {
+        "id": "invitations_gifts",
+        "name": "Invitations, Favors & Stationery",
+        "default_questions": [
+          "What is the turnaround time for digital animated invites and printed boxes?",
+          "Are edible return favors packaged with expiry dates and seal freshness?",
+          "What is the unit cost discount if quantity increases by 20%?"
+        ]
+      }
+    ],
+    "task_templates": [
+      {
+        "id": "task_budget_guestlist",
+        "title": "Finalize guest count and overall budget ceiling",
+        "phase": "Foundations & Venue",
+        "lead_days_before_event": 140,
+        "priority": "high",
+        "category": "planning",
+        "depends_on": []
+      },
+      {
+        "id": "task_book_venue",
+        "title": "Inspect & book venue with advance payment and written contract",
+        "phase": "Foundations & Venue",
+        "lead_days_before_event": 120,
+        "priority": "high",
+        "category": "venue",
+        "depends_on": ["task_budget_guestlist"]
+      },
+      {
+        "id": "task_book_caterer",
+        "title": "Conduct food tasting and lock catering contract",
+        "phase": "Key Vendors",
+        "lead_days_before_event": 90,
+        "priority": "high",
+        "category": "catering",
+        "depends_on": ["task_book_venue"]
+      },
+      {
+        "id": "task_book_photographer",
+        "title": "Hire photographer & videographer team",
+        "phase": "Key Vendors",
+        "lead_days_before_event": 75,
+        "priority": "medium",
+        "category": "photography_videography",
+        "depends_on": ["task_book_venue"]
+      },
+      {
+        "id": "task_finalize_decor",
+        "title": "Approve decor layout, floral color palette, and stage lighting",
+        "phase": "Details & Decor",
+        "lead_days_before_event": 60,
+        "priority": "medium",
+        "category": "decor_styling",
+        "depends_on": ["task_book_venue"]
+      },
+      {
+        "id": "task_send_invites",
+        "title": "Dispatch digital/physical invitations with RSVP tracking",
+        "phase": "Details & Decor",
+        "lead_days_before_event": 45,
+        "priority": "high",
+        "category": "invitations_gifts",
+        "depends_on": ["task_budget_guestlist", "task_book_venue"]
+      },
+      {
+        "id": "task_lock_attire",
+        "title": "Complete final fittings for ceremony outfits & confirm makeup timing",
+        "phase": "Details & Decor",
+        "lead_days_before_event": 30,
+        "priority": "medium",
+        "category": "attire_grooming",
+        "depends_on": []
+      },
+      {
+        "id": "task_confirm_vendors",
+        "title": "Confirm arrival timeline, backup generators, and contact sheets for all vendors",
+        "phase": "Final Week Prep",
+        "lead_days_before_event": 7,
+        "priority": "high",
+        "category": "planning",
+        "depends_on": ["task_book_caterer", "task_finalize_decor"]
+      },
+      {
+        "id": "task_day_coordination",
+        "title": "Designate family point-of-contact for vendor payments and guest reception",
+        "phase": "Event Day Execution",
+        "lead_days_before_event": 1,
+        "priority": "high",
+        "category": "planning",
+        "depends_on": ["task_confirm_vendors"]
+      }
+    ]
+  },
+  "birthday": {
+    "label": "Birthday / Milestone Celebration",
+    "standard_lead_days": 45,
+    "contingency_pct": 0.07,
+    "benchmark_per_guest": {
+      "tier1": 800,
+      "tier2": 550,
+      "tier3": 400
+    },
+    "category_weights": {
+      "catering": 0.40,
+      "venue": 0.18,
+      "decor_styling": 0.18,
+      "entertainment_activities": 0.12,
+      "cake_desserts": 0.07,
+      "photography": 0.05
+    },
+    "per_head_categories": ["catering", "cake_desserts"],
+    "floors": {
+      "catering": 0.28,
+      "venue": 0.10,
+      "decor_styling": 0.10,
+      "entertainment_activities": 0.06,
+      "cake_desserts": 0.04,
+      "photography": 0.03
+    },
+    "vendor_categories": [
+      {
+        "id": "catering",
+        "name": "Food & Refreshments",
+        "default_questions": [
+          "Do you have kid-friendly and elder-friendly snacks with low spice options?",
+          "Are beverage dispensers and disposable or reusable cutlery included?"
+        ]
+      },
+      {
+        "id": "cake_desserts",
+        "name": "Custom Cake & Dessert Table",
+        "default_questions": [
+          "Can you deliver the theme cake in a temperature-controlled vehicle at the exact time?",
+          "Are eggless or vegan flavor options available without extra surcharge?"
+        ]
+      },
+      {
+        "id": "decor_styling",
+        "name": "Theme Decor & Balloons",
+        "default_questions": [
+          "Are you using biodegradable balloon arches and reusable theme backdrops?",
+          "How much setup time do you need before the party starts?"
+        ]
+      },
+      {
+        "id": "entertainment_activities",
+        "name": "Games, Anchor & Entertainment",
+        "default_questions": [
+          "Will the game host bring age-appropriate party games and small token prizes?",
+          "Do you provide a portable PA speaker and mic system?"
+        ]
+      },
+      {
+        "id": "venue",
+        "name": "Party Venue / Hall",
+        "default_questions": [
+          "Is there dedicated space for cake cutting, dancing, and dining?",
+          "Can we bring our own cake and decor without paying outside vendor fees?"
+        ]
+      },
+      {
+        "id": "photography",
+        "name": "Party Photography",
+        "default_questions": [
+          "How many hours of coverage are included and will you capture cake cutting moments?",
+          "Will edited photos be delivered within 3-5 days?"
+        ]
+      }
+    ],
+    "task_templates": [
+      {
+        "id": "bday_guestlist_theme",
+        "title": "Decide celebration theme, date, and guest count",
+        "phase": "Foundations & Venue",
+        "lead_days_before_event": 40,
+        "priority": "high",
+        "category": "planning",
+        "depends_on": []
+      },
+      {
+        "id": "bday_book_venue",
+        "title": "Reserve venue or club house party hall",
+        "phase": "Foundations & Venue",
+        "lead_days_before_event": 30,
+        "priority": "high",
+        "category": "venue",
+        "depends_on": ["bday_guestlist_theme"]
+      },
+      {
+        "id": "bday_order_cake",
+        "title": "Design and order custom theme cake",
+        "phase": "Key Vendors",
+        "lead_days_before_event": 20,
+        "priority": "high",
+        "category": "cake_desserts",
+        "depends_on": ["bday_guestlist_theme"]
+      },
+      {
+        "id": "bday_book_decor_games",
+        "title": "Book theme decorator and game host / entertainer",
+        "phase": "Key Vendors",
+        "lead_days_before_event": 15,
+        "priority": "medium",
+        "category": "decor_styling",
+        "depends_on": ["bday_book_venue"]
+      },
+      {
+        "id": "bday_send_invites",
+        "title": "Send WhatsApp invitations and collect RSVPs",
+        "phase": "Details & Decor",
+        "lead_days_before_event": 14,
+        "priority": "high",
+        "category": "planning",
+        "depends_on": ["bday_book_venue"]
+      },
+      {
+        "id": "bday_confirm_catering",
+        "title": "Finalize snacks, beverages, and return gift counts based on RSVPs",
+        "phase": "Final Week Prep",
+        "lead_days_before_event": 5,
+        "priority": "high",
+        "category": "catering",
+        "depends_on": ["bday_send_invites"]
+      },
+      {
+        "id": "bday_party_day",
+        "title": "Pick up cake, verify balloon setup, and coordinate music playlist",
+        "phase": "Event Day Execution",
+        "lead_days_before_event": 1,
+        "priority": "high",
+        "category": "planning",
+        "depends_on": ["bday_confirm_catering"]
+      }
+    ]
+  },
+  "community": {
+    "label": "Community Event / Festival / Puja",
+    "standard_lead_days": 60,
+    "contingency_pct": 0.10,
+    "benchmark_per_guest": {
+      "tier1": 600,
+      "tier2": 450,
+      "tier3": 300
+    },
+    "category_weights": {
+      "catering_prasad": 0.42,
+      "venue_tent_setup": 0.22,
+      "sound_lighting": 0.14,
+      "puja_rituals_materials": 0.12,
+      "sanitation_crowd_management": 0.06,
+      "publicity_signage": 0.04
+    },
+    "per_head_categories": ["catering_prasad"],
+    "floors": {
+      "catering_prasad": 0.30,
+      "venue_tent_setup": 0.15,
+      "sound_lighting": 0.08,
+      "puja_rituals_materials": 0.06,
+      "sanitation_crowd_management": 0.04,
+      "publicity_signage": 0.02
+    },
+    "vendor_categories": [
+      {
+        "id": "catering_prasad",
+        "name": "Community Feast (Langar/Prasad)",
+        "default_questions": [
+          "Can you manage continuous bulk serving during peak hours?",
+          "Are food safety, hygiene caps, and pure satvik preparations guaranteed?"
+        ]
+      },
+      {
+        "id": "venue_tent_setup",
+        "name": "Pandal, Tent & Seating",
+        "default_questions": [
+          "Are waterproof canopy structures, carpet runners, and adequate fans/misters included?",
+          "Is the structure certified for fire safety clearance and emergency exits?"
+        ]
+      },
+      {
+        "id": "sound_lighting",
+        "name": "Sound, PA & Generator Backup",
+        "default_questions": [
+          "Are wireless mics provided for speakers/singers and announcements?",
+          "Is a heavy-duty silent diesel generator included with fuel backup?"
+        ]
+      },
+      {
+        "id": "sanitation_crowd_management",
+        "name": "Sanitation, Volunteers & Waste",
+        "default_questions": [
+          "Are portable bio-toilets or dedicated cleaning personnel stationed throughout?",
+          "What is the segregation and eco-friendly wet/dry waste disposal plan?"
+        ]
+      }
+    ],
+    "task_templates": [
+      {
+        "id": "comm_committee_budget",
+        "title": "Convene organizing committee and approve total budget",
+        "phase": "Foundations & Venue",
+        "lead_days_before_event": 55,
+        "priority": "high",
+        "category": "planning",
+        "depends_on": []
+      },
+      {
+        "id": "comm_permissions_venue",
+        "title": "Secure municipal, society, or police ground clearances",
+        "phase": "Foundations & Venue",
+        "lead_days_before_event": 45,
+        "priority": "high",
+        "category": "venue_tent_setup",
+        "depends_on": ["comm_committee_budget"]
+      },
+      {
+        "id": "comm_book_tent_sound",
+        "title": "Book pandal/tent contractor, stage, and sound/generator system",
+        "phase": "Key Vendors",
+        "lead_days_before_event": 30,
+        "priority": "high",
+        "category": "venue_tent_setup",
+        "depends_on": ["comm_permissions_venue"]
+      },
+      {
+        "id": "comm_lock_catering",
+        "title": "Confirm community kitchen / bulk catering menu and raw material supplies",
+        "phase": "Key Vendors",
+        "lead_days_before_event": 20,
+        "priority": "high",
+        "category": "catering_prasad",
+        "depends_on": ["comm_committee_budget"]
+      },
+      {
+        "id": "comm_volunteer_briefing",
+        "title": "Assign crowd management, queue control, and Prasad distribution teams",
+        "phase": "Final Week Prep",
+        "lead_days_before_event": 7,
+        "priority": "medium",
+        "category": "sanitation_crowd_management",
+        "depends_on": ["comm_lock_catering"]
+      },
+      {
+        "id": "comm_final_check",
+        "title": "Test sound system, verify fire extinguishers, and inspect entry/exit gates",
+        "phase": "Event Day Execution",
+        "lead_days_before_event": 1,
+        "priority": "high",
+        "category": "planning",
+        "depends_on": ["comm_book_tent_sound"]
+      }
+    ]
+  },
+  "anniversary": {
+    "label": "Anniversary / Milestone Celebration",
+    "standard_lead_days": 60,
+    "contingency_pct": 0.08,
+    "benchmark_per_guest": {
+      "tier1": 1200,
+      "tier2": 850,
+      "tier3": 600
+    },
+    "category_weights": {
+      "catering": 0.40,
+      "venue": 0.22,
+      "decor_styling": 0.16,
+      "photography_videography": 0.10,
+      "entertainment_audio": 0.07,
+      "gifts_favors": 0.05
+    },
+    "per_head_categories": ["catering", "gifts_favors"],
+    "floors": {
+      "catering": 0.28,
+      "venue": 0.14,
+      "decor_styling": 0.10,
+      "photography_videography": 0.06,
+      "entertainment_audio": 0.04,
+      "gifts_favors": 0.03
+    },
+    "vendor_categories": [
+      {
+        "id": "catering",
+        "name": "Dinner & Cocktails / Mocktails",
+        "default_questions": [
+          "Can you curate a signature menu reflecting family nostalgia or regional specialties?",
+          "Are live grill or dessert counters possible at the venue?"
+        ]
+      },
+      {
+        "id": "venue",
+        "name": "Intimate Hall / Garden Venue",
+        "default_questions": [
+          "Is the space wheelchair accessible and comfortable for senior family members?",
+          "Are AV projector screens available for family memory slideshows?"
+        ]
+      },
+      {
+        "id": "decor_styling",
+        "name": "Nostalgic Decor & Florals",
+        "default_questions": [
+          "Can you create a photo-wall gallery displaying family milestones through decades?",
+          "Are warm fairy lights and candle-light centerpieces included?"
+        ]
+      }
+    ],
+    "task_templates": [
+      {
+        "id": "anni_guest_venue",
+        "title": "Finalize close family & friends guest list and reserve venue",
+        "phase": "Foundations & Venue",
+        "lead_days_before_event": 50,
+        "priority": "high",
+        "category": "venue",
+        "depends_on": []
+      },
+      {
+        "id": "anni_catering_photos",
+        "title": "Select nostalgic menu and book photographer for portraits",
+        "phase": "Key Vendors",
+        "lead_days_before_event": 35,
+        "priority": "high",
+        "category": "catering",
+        "depends_on": ["anni_guest_venue"]
+      },
+      {
+        "id": "anni_slideshow_decor",
+        "title": "Collect old photographs for memory wall & AV slideshow",
+        "phase": "Details & Decor",
+        "lead_days_before_event": 20,
+        "priority": "medium",
+        "category": "decor_styling",
+        "depends_on": []
+      },
+      {
+        "id": "anni_send_invites",
+        "title": "Dispatch digital invitations and coordinate toast speeches",
+        "phase": "Details & Decor",
+        "lead_days_before_event": 18,
+        "priority": "high",
+        "category": "planning",
+        "depends_on": ["anni_guest_venue"]
+      },
+      {
+        "id": "anni_day_prep",
+        "title": "Test slideshow video, coordinate cake delivery, and set up photo wall",
+        "phase": "Event Day Execution",
+        "lead_days_before_event": 1,
+        "priority": "high",
+        "category": "planning",
+        "depends_on": ["anni_slideshow_decor"]
+      }
+    ]
+  },
+  "corporate": {
+    "label": "Corporate / Team Gathering",
+    "standard_lead_days": 40,
+    "contingency_pct": 0.08,
+    "benchmark_per_guest": {
+      "tier1": 1400,
+      "tier2": 950,
+      "tier3": 700
+    },
+    "category_weights": {
+      "catering": 0.38,
+      "venue_conference": 0.28,
+      "av_tech_stage": 0.16,
+      "activities_facilitator": 0.10,
+      "branding_swag": 0.08
+    },
+    "per_head_categories": ["catering", "branding_swag"],
+    "floors": {
+      "catering": 0.28,
+      "venue_conference": 0.18,
+      "av_tech_stage": 0.10,
+      "activities_facilitator": 0.05,
+      "branding_swag": 0.04
+    },
+    "vendor_categories": [
+      {
+        "id": "venue_conference",
+        "name": "Hotel / Resort / Conference Hall",
+        "default_questions": [
+          "Does high-speed Wi-Fi support 150+ concurrent devices?",
+          "Are dedicated breakout meeting rooms and tea-break foyers included?"
+        ]
+      },
+      {
+        "id": "av_tech_stage",
+        "name": "AV, Podiums & LED Screens",
+        "default_questions": [
+          "What is the resolution of the main stage LED backdrop screen?",
+          "Is an on-site AV technician stationed throughout the event?"
+        ]
+      }
+    ],
+    "task_templates": [
+      {
+        "id": "corp_budget_agenda",
+        "title": "Define offsite objectives, date, and executive budget approval",
+        "phase": "Foundations & Venue",
+        "lead_days_before_event": 35,
+        "priority": "high",
+        "category": "planning",
+        "depends_on": []
+      },
+      {
+        "id": "corp_book_resort",
+        "title": "Sign hotel/resort agreement with day-delegate package (DDP)",
+        "phase": "Foundations & Venue",
+        "lead_days_before_event": 25,
+        "priority": "high",
+        "category": "venue_conference",
+        "depends_on": ["corp_budget_agenda"]
+      },
+      {
+        "id": "corp_av_activities",
+        "title": "Book team building facilitator and test AV/projection systems",
+        "phase": "Key Vendors",
+        "lead_days_before_event": 15,
+        "priority": "medium",
+        "category": "av_tech_stage",
+        "depends_on": ["corp_book_resort"]
+      },
+      {
+        "id": "corp_event_day",
+        "title": "Verify attendee badges, presentation decks, and catering logistics",
+        "phase": "Event Day Execution",
+        "lead_days_before_event": 1,
+        "priority": "high",
+        "category": "planning",
+        "depends_on": ["corp_av_activities"]
+      }
+    ]
+  }
+}
