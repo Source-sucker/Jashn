@@ -7,7 +7,6 @@ Never prints or logs secret API keys.
 """
 
 import asyncio
-import os
 import sys
 import time
 from datetime import date, timedelta
@@ -17,17 +16,17 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT_DIR))
 
-from app.config import settings
-from app.models.schemas import (
+from app.config import settings  # noqa: E402
+from app.models.schemas import (  # noqa: E402
     EventBrief,
     IntakeRequest,
     PlanResponse,
     RefineIdeasRequest,
     ReplanRequest,
 )
-from app.services.ai_client import GeminiClient
-from app.services.planner import generate_plan, process_intake
-from app.services.replan import compute_replan
+from app.services.ai_client import GeminiClient  # noqa: E402
+from app.services.planner import generate_plan, process_intake  # noqa: E402
+from app.services.replan import compute_replan  # noqa: E402
 
 
 async def run_smoke_test():
