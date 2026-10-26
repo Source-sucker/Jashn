@@ -24,6 +24,7 @@ if _env_path.is_file():
 class Settings(BaseModel):
     gemini_api_key: str = Field(default_factory=lambda: os.getenv("GEMINI_API_KEY", "").strip())
     gemini_model: str = Field(default_factory=lambda: os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite").strip())
+    gemini_model_fallbacks_raw: str = Field(default_factory=lambda: os.getenv("GEMINI_MODEL_FALLBACKS", "").strip())
     ai_timeout_seconds: int = Field(default_factory=lambda: int(os.getenv("AI_TIMEOUT_SECONDS", "40")))
     ai_timeout_intake: int = Field(default_factory=lambda: int(os.getenv("AI_TIMEOUT_INTAKE", os.getenv("AI_TIMEOUT_SECONDS", "40"))))
     ai_timeout_plan: int = Field(default_factory=lambda: int(os.getenv("AI_TIMEOUT_PLAN", os.getenv("AI_TIMEOUT_SECONDS", "40"))))
@@ -32,6 +33,12 @@ class Settings(BaseModel):
     rate_limit_per_min: int = Field(default_factory=lambda: int(os.getenv("RATE_LIMIT_PER_MIN", "30")))
     trusted_proxy_count: int = Field(default_factory=lambda: int(os.getenv("TRUSTED_PROXY_COUNT", "0")))
     allowed_origins: list[str] = Field(default_factory=lambda: Settings._parse_origins(os.getenv("ALLOWED_ORIGINS", "*")))
+
+    @property
+    def gemini_model_fallbacks(self) -> list[str]:
+        if not self.gemini_model_fallbacks_raw:
+            return []
+        return [m.strip() for m in self.gemini_model_fallbacks_raw.split(",") if m.strip()]
 
     def get_task_timeout(self, task: str = "general") -> float:
         task_clean = (task or "general").lower().strip()

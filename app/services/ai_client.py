@@ -30,6 +30,7 @@ class GeminiClient:
     def __init__(self):
         self.api_key = settings.gemini_api_key
         self.model_name = settings.gemini_model or "gemini-flash-latest"
+        self.fallback_models = settings.gemini_model_fallbacks
         self.timeout = settings.ai_timeout_seconds
         self._client: Optional[genai.Client] = None
 
@@ -105,42 +106,83 @@ class GeminiClient:
         "replan": 350,
     }
 
+    @staticmethod
+    def _is_model_fallback_error(exc: Exception) -> bool:
+        """
+        Returns True if exception indicates model not found (404) or overload (503, 429).
+        """
+        err_str = str(exc).lower()
+        code = getattr(exc, "code", None)
+        if code in (404, 429, 503):
+            return True
+
+        status_attr = getattr(exc, "status", None)
+        if status_attr in ("NOT_FOUND", "RESOURCE_EXHAUSTED", "UNAVAILABLE"):
+            return True
+
+        indicators = [
+            "not found", "404", "not_found", "does not exist",
+            "unavailable", "503", "overloaded", "high demand",
+            "resource exhausted", "resource_exhausted", "429", "quota", "too many requests"
+        ]
+        return any(ind in err_str for ind in indicators)
+
     async def _call_gemini_api(self, prompt: str, task: str = "general") -> Optional[dict[str, Any]]:
         """
         Runs synchronous SDK call inside default thread pool executor to remain async-friendly.
-        Caps max_output_tokens per task to minimize generation latency.
+        Caps max_output_tokens per task and implements fallback model chain on model-not-found or overload.
+        Logs only model names, never secret keys.
         """
         loop = asyncio.get_running_loop()
+        models_to_try = [self.model_name] + [m for m in self.fallback_models if m != self.model_name]
 
-        def _sync_call():
-            max_tokens = self.TASK_TOKEN_LIMITS.get(task, 750)
-            config = types.GenerateContentConfig(
-                response_mime_type="application/json",
-                temperature=0.2,
-                max_output_tokens=max_tokens
-            )
-            response = self._client.models.generate_content(
-                model=self.model_name,
-                contents=prompt,
-                config=config
-            )
-            return response.text
+        for idx, model_to_call in enumerate(models_to_try):
+            def _sync_call(target_model: str):
+                max_tokens = self.TASK_TOKEN_LIMITS.get(task, 750)
+                config_kwargs: dict[str, Any] = {
+                    "response_mime_type": "application/json",
+                    "temperature": 0.2,
+                    "max_output_tokens": max_tokens,
+                }
+                if "thinking" in target_model.lower():
+                    config_kwargs["thinking_config"] = types.ThinkingConfig(thinking_budget=256)
 
-        raw_text = await loop.run_in_executor(None, _sync_call)
-        if not raw_text:
-            return None
+                config = types.GenerateContentConfig(**config_kwargs)
+                response = self._client.models.generate_content(
+                    model=target_model,
+                    contents=prompt,
+                    config=config
+                )
+                return response.text
 
-        # Clean code fence if present
-        cleaned = raw_text.strip()
-        if cleaned.startswith("```json"):
-            cleaned = cleaned[7:]
-        elif cleaned.startswith("```"):
-            cleaned = cleaned[3:]
-        if cleaned.endswith("```"):
-            cleaned = cleaned[:-3]
-        cleaned = cleaned.strip()
+            try:
+                raw_text = await loop.run_in_executor(None, _sync_call, model_to_call)
+                if not raw_text:
+                    continue
 
-        return json.loads(cleaned)
+                cleaned = raw_text.strip()
+                if cleaned.startswith("```json"):
+                    cleaned = cleaned[7:]
+                elif cleaned.startswith("```"):
+                    cleaned = cleaned[3:]
+                if cleaned.endswith("```"):
+                    cleaned = cleaned[:-3]
+                cleaned = cleaned.strip()
+
+                return json.loads(cleaned)
+
+            except Exception as e:
+                has_next = (idx + 1) < len(models_to_try)
+                if has_next and self._is_model_fallback_error(e):
+                    next_model = models_to_try[idx + 1]
+                    logger.warning(
+                        f"Gemini model '{model_to_call}' error ({e.__class__.__name__}). Falling back to model '{next_model}'."
+                    )
+                    continue
+                else:
+                    raise e
+
+        return None
 
 
 # Global singleton instance
