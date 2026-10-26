@@ -4,6 +4,14 @@ from app.models.schemas import EventBrief, PlanResponse
 from app.services.fallback import build_fallback_plan
 
 
+@pytest.fixture(autouse=True)
+def default_offline_env(monkeypatch):
+    """Keep test suite fast and deterministic by default; specific tests explicitly patch key."""
+    monkeypatch.setattr("app.config.settings.gemini_api_key", "")
+    from app.services.ai_client import ai_client
+    monkeypatch.setattr(ai_client, "_client", None)
+
+
 @pytest.fixture
 def sample_brief() -> EventBrief:
     return EventBrief(
