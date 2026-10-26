@@ -1,5 +1,5 @@
 import { announce, trapFocus } from './a11y.js';
-import { fetchHealth } from './api.js';
+import { fetchHealth, postPlanEnrich } from './api.js';
 import { clearPlan, exportPlanJSON, importPlanJSON, loadPlan, savePlan } from './store.js';
 import { renderBudgetView } from './views/budgetView.js';
 import { renderIdeasView } from './views/ideasView.js';
@@ -38,10 +38,54 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Initialize Intake Controller
-  initIntakeView((newPlan) => {
+  initIntakeView((newPlan, meta) => {
     activePlan = newPlan;
     showDashboard();
+
+    if (meta && meta.progressive && meta.brief) {
+      loadThemesProgressively(meta.brief, newPlan);
+    }
   });
+
+  async function loadThemesProgressively(brief, plan) {
+    announce('Calculating budget & timeline... Ready! Crafting personalized themes...', 'polite');
+    try {
+      const catSummary = plan.budget && plan.budget.categories
+        ? plan.budget.categories.map(c => `${c.label}: ₹${c.allocated_amount}`).join(', ')
+        : '';
+      const daysRemaining = plan.timeline ? plan.timeline.days_remaining : null;
+
+      const enrichedIdeas = await postPlanEnrich({
+        brief,
+        categories_summary: catSummary,
+        days_remaining: daysRemaining
+      });
+
+      if (enrichedIdeas && enrichedIdeas.themes && enrichedIdeas.themes.length >= 3) {
+        plan.ideas = enrichedIdeas;
+        plan.is_ai_generated = true;
+        plan.ai_pending = false;
+        plan.ai_failed = false;
+        plan.ai_status_message = 'AI personalized plan with tailored cultural themes & vendor questions';
+        savePlan(plan);
+        announce('Personalized themes loaded.', 'polite');
+      } else {
+        plan.ai_pending = false;
+        plan.ai_failed = true;
+        savePlan(plan);
+        announce('AI themes unavailable. Default curated themes loaded.', 'polite');
+      }
+    } catch (err) {
+      console.warn('Progressive AI enrichment failed:', err);
+      plan.ai_pending = false;
+      plan.ai_failed = true;
+      plan.ai_status_message = 'AI unavailable: rule-based plan active';
+      savePlan(plan);
+      announce('AI themes unavailable. Default curated themes loaded.', 'polite');
+    } finally {
+      renderCurrentTab();
+    }
+  }
 
   // Initialize Replan Modal Controller
   initReplanModal(

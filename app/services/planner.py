@@ -2,7 +2,7 @@ import logging
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from app.models.schemas import (
     ClarifyingQuestion,
@@ -190,12 +190,90 @@ async def process_intake(request: IntakeRequest) -> IntakeResponse:
     )
 
 
-async def generate_plan(brief: EventBrief) -> PlanResponse:
+async def enrich_plan_ideas(
+    brief: EventBrief,
+    categories_summary: Optional[str] = None,
+    days_remaining: Optional[int] = None
+) -> tuple[IdeasReport, dict[str, list[str]], bool]:
+    """
+    Enriches plan ideas via Gemini. Returns (IdeasReport, vendor_questions, is_ai_generated).
+    Falls back to deterministic curated themes on failure.
+    """
+    ai_themes: list[ThemeIdea] = []
+    cultural_note = ""
+    vendor_custom_questions: dict[str, list[str]] = {}
+    is_ai_generated = False
+
+    if ai_client.is_available():
+        try:
+            template = _read_prompt("plan_enrichment_v1.txt")
+            prompt = _format_prompt(
+                template,
+                {
+                    "event_type": brief.event_type,
+                    "event_date": brief.event_date,
+                    "days_remaining": str(days_remaining or 90),
+                    "city": brief.city,
+                    "guest_count": str(brief.guest_count),
+                    "total_budget": str(brief.total_budget),
+                    "priorities": ", ".join(brief.priorities) if brief.priorities else "None specified",
+                    "venue_preference": brief.venue_preference or "Flexible",
+                    "dietary_cultural_notes": brief.dietary_cultural_notes or "Standard regional preferences",
+                    "vibe": brief.vibe or "Warm and welcoming",
+                    "user_description": brief.user_description or "None provided",
+                    "categories_summary": categories_summary or "Standard budget allocation"
+                }
+            )
+
+            enrichment_data = await ai_client.generate_json(prompt, task="plan")
+            if enrichment_data and isinstance(enrichment_data, dict):
+                raw_themes = enrichment_data.get("themes", [])
+                for idx, t in enumerate(raw_themes[:3]):
+                    if isinstance(t, dict) and "title" in t:
+                        ai_themes.append(
+                            ThemeIdea(
+                                id=f"theme_{idx + 1}",
+                                title=t.get("title", f"Theme {idx + 1}"),
+                                tagline=t.get("tagline", ""),
+                                decor_concept=t.get("decor_concept", ""),
+                                menu_highlights=list(t.get("menu_highlights", []))[:2],
+                                activities=list(t.get("activities", []))[:2],
+                                budget_category=t.get("budget_category", "decor_styling"),
+                                fits_allocation=True,
+                                estimated_tier=t.get("estimated_tier", "Balanced")
+                            )
+                        )
+
+                cultural_note = str(enrichment_data.get("cultural_alignment_note", ""))
+                v_qs = enrichment_data.get("vendor_questions", {})
+                if isinstance(v_qs, dict):
+                    vendor_custom_questions = v_qs
+
+                if len(ai_themes) >= 3:
+                    is_ai_generated = True
+        except Exception as e:
+            logger.warning(f"Plan enrichment error, falling back to rule-based ideas: {e}")
+
+    # Fallback to deterministic ideas if AI failed or unconfigured
+    if not ai_themes:
+        fallback_plan = build_fallback_plan(brief)
+        ai_themes = fallback_plan.ideas.themes
+        cultural_note = fallback_plan.ideas.cultural_alignment_note
+
+    ideas_report = IdeasReport(
+        themes=ai_themes,
+        cultural_alignment_note=cultural_note or f"Personalized plan tailored for {brief.event_type.title()} in {brief.city}."
+    )
+    return ideas_report, vendor_custom_questions, is_ai_generated
+
+
+async def generate_plan(brief: EventBrief, enrich: bool = True) -> PlanResponse:
     """
     Main Plan Orchestrator:
     - Runs deterministic budget engine
     - Runs deterministic timeline engine
-    - Single AI enrichment call to Gemini for themes, decor, menu, activities, and vendor questions
+    - If enrich=True: calls Gemini for personalized themes, decor, menu, and vendor questions
+    - If enrich=False: fast deterministic path returning budget and timeline immediately
     - If AI call fails or is unconfigured, uses deterministic fallback without failing
     """
     # 1. Deterministic Engines Execution
@@ -212,79 +290,28 @@ async def generate_plan(brief: EventBrief) -> PlanResponse:
         event_type=brief.event_type
     )
 
-    # 2. GenAI Enrichment Call (Single Call)
-    ai_status_message = "AI enriched plan"
-    is_ai_generated = False
-    ai_themes: list[ThemeIdea] = []
-    cultural_note = ""
-    vendor_custom_questions: dict[str, list[str]] = {}
-
-    if ai_client.is_available():
-        try:
-            template = _read_prompt("plan_enrichment_v1.txt")
-            cat_summary = ", ".join(
-                f"{c.label}: ₹{c.allocated_amount:,}" for c in budget_report.categories
-            )
-            prompt = _format_prompt(
-                template,
-                {
-                    "event_type": brief.event_type,
-                    "event_date": brief.event_date,
-                    "days_remaining": str(timeline_report.days_remaining),
-                    "city": brief.city,
-                    "guest_count": str(brief.guest_count),
-                    "total_budget": str(brief.total_budget),
-                    "priorities": ", ".join(brief.priorities) if brief.priorities else "None specified",
-                    "venue_preference": brief.venue_preference or "Flexible",
-                    "dietary_cultural_notes": brief.dietary_cultural_notes or "Standard regional preferences",
-                    "vibe": brief.vibe or "Warm and welcoming",
-                    "user_description": brief.user_description or "None provided",
-                    "categories_summary": cat_summary
-                }
-            )
-
-            enrichment_data = await ai_client.generate_json(prompt, task="plan")
-            if enrichment_data and isinstance(enrichment_data, dict):
-                raw_themes = enrichment_data.get("themes", [])
-                for idx, t in enumerate(raw_themes[:3]):
-                    if isinstance(t, dict) and "title" in t:
-                        ai_themes.append(
-                            ThemeIdea(
-                                id=f"theme_{idx + 1}",
-                                title=t.get("title", f"Theme {idx + 1}"),
-                                tagline=t.get("tagline", ""),
-                                decor_concept=t.get("decor_concept", ""),
-                                menu_highlights=list(t.get("menu_highlights", []))[:4],
-                                activities=list(t.get("activities", []))[:3],
-                                budget_category=t.get("budget_category", "decor_styling"),
-                                fits_allocation=True,
-                                estimated_tier=t.get("estimated_tier", "Balanced")
-                            )
-                        )
-
-                cultural_note = str(enrichment_data.get("cultural_alignment_note", ""))
-                v_qs = enrichment_data.get("vendor_questions", {})
-                if isinstance(v_qs, dict):
-                    vendor_custom_questions = v_qs
-
-                if len(ai_themes) >= 3:
-                    is_ai_generated = True
-                    ai_status_message = "AI personalized plan with tailored cultural themes & vendor questions"
-        except Exception as e:
-            logger.warning(f"Plan enrichment error, falling back to rule-based ideas: {e}")
-
-    # Fallback to deterministic ideas if AI failed or unconfigured
-    if not ai_themes:
+    # 2. Themes & Ideas Enrichment
+    if enrich:
+        cat_summary = ", ".join(
+            f"{c.label}: ₹{c.allocated_amount:,}" for c in budget_report.categories
+        )
+        ideas_report, vendor_custom_questions, is_ai_generated = await enrich_plan_ideas(
+            brief=brief,
+            categories_summary=cat_summary,
+            days_remaining=timeline_report.days_remaining
+        )
+        ai_status_message = (
+            "AI personalized plan with tailored cultural themes & vendor questions"
+            if is_ai_generated
+            else "AI unavailable: rule-based plan built from your inputs"
+        )
+    else:
+        # Fast progressive path: instantaneous deterministic return
         fallback_plan = build_fallback_plan(brief)
-        ai_themes = fallback_plan.ideas.themes
-        cultural_note = fallback_plan.ideas.cultural_alignment_note
-        ai_status_message = "AI unavailable: rule-based plan built from your inputs"
+        ideas_report = fallback_plan.ideas
+        vendor_custom_questions = {}
         is_ai_generated = False
-
-    ideas_report = IdeasReport(
-        themes=ai_themes,
-        cultural_alignment_note=cultural_note or f"Personalized plan tailored for {brief.event_type.title()} in {brief.city}."
-    )
+        ai_status_message = "Fast deterministic plan ready"
 
     vendor_items = build_vendor_checklist(
         event_type=brief.event_type,

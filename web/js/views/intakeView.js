@@ -184,15 +184,18 @@ export function initIntakeView(onPlanGenerated) {
         brief = intakeRes.brief;
       }
 
-      // Intake complete: generate plan!
+      // Intake complete: generate plan progressively!
       clarifyingBox.classList.add('hidden');
-      announce('Generating tailored budget, timeline, and cultural themes...');
-      const planRes = await postPlan(brief);
+      announce('Calculating budget and timeline...', 'polite');
+
+      // Return deterministic budget and timeline immediately
+      const planRes = await postPlan(brief, false);
+      planRes.ai_pending = true;
 
       savePlan(planRes);
       setLoading(false);
-      announce('Plan ready! Showing your celebration dashboard.');
-      if (onPlanGenerated) onPlanGenerated(planRes);
+      announce('Budget and timeline ready! Loading your celebration dashboard.', 'polite');
+      if (onPlanGenerated) onPlanGenerated(planRes, { progressive: true, brief });
     } catch (err) {
       setLoading(false);
       showErrors([err.message || 'Unable to generate plan. Please verify inputs and retry.']);

@@ -7,6 +7,22 @@ export function renderIdeasView(container, plan) {
 
   const { ideas, brief } = plan;
 
+  // If AI enrichment failed, show clear warning banner
+  if (plan.ai_failed) {
+    const banner = document.createElement('div');
+    banner.className = 'banner-warning';
+    banner.setAttribute('role', 'alert');
+    banner.id = 'ai-enrichment-failure-banner';
+    banner.innerHTML = `
+      <span aria-hidden="true" style="font-size: 1.3rem;">⚠️</span>
+      <div>
+        <strong>Personalized AI Themes Unavailable:</strong>
+        <span> Could not load AI themes. Default curated concepts are ready below, and your budget & timeline remain fully usable.</span>
+      </div>
+    `;
+    container.appendChild(banner);
+  }
+
   // Header
   const header = document.createElement('div');
   header.className = 'budget-overview-header';
@@ -21,8 +37,51 @@ export function renderIdeasView(container, plan) {
   sub.textContent = ideas.cultural_alignment_note || 'Personalized concepts tailored to your culture, dietary preferences, and budget tier.';
   hLeft.appendChild(title);
   hLeft.appendChild(sub);
+  header.appendChild(hLeft);
 
   container.appendChild(header);
+
+  // If AI is currently generating themes progressively, show aria-live status and skeleton cards
+  if (plan.ai_pending) {
+    const progressStatus = document.createElement('div');
+    progressStatus.className = 'ai-progress-status';
+    progressStatus.setAttribute('role', 'status');
+    progressStatus.setAttribute('aria-live', 'polite');
+    progressStatus.innerHTML = `
+      <span class="btn-spinner" aria-hidden="true"></span>
+      <span>Calculating budget & timeline... Ready! Crafting personalized themes & ideas...</span>
+    `;
+    container.appendChild(progressStatus);
+
+    const skeletonGrid = document.createElement('div');
+    skeletonGrid.className = 'themes-grid';
+    for (let i = 0; i < 3; i++) {
+      const skelCard = document.createElement('div');
+      skelCard.className = 'skeleton-card';
+      skelCard.innerHTML = `
+        <div>
+          <span class="skeleton-bar w-35 skeleton-pulse"></span>
+          <span class="skeleton-bar w-75 h-28 skeleton-pulse"></span>
+          <span class="skeleton-bar w-50 skeleton-pulse"></span>
+          <div style="margin-top: 1rem;">
+            <span class="skeleton-bar w-35 skeleton-pulse"></span>
+            <span class="skeleton-bar w-75 skeleton-pulse"></span>
+          </div>
+          <div style="margin-top: 1rem;">
+            <span class="skeleton-bar w-50 skeleton-pulse"></span>
+            <span class="skeleton-bar w-75 skeleton-pulse"></span>
+            <span class="skeleton-bar w-75 skeleton-pulse"></span>
+          </div>
+        </div>
+        <div style="border-top: 1px solid var(--border-subtle); padding-top: 0.75rem; margin-top: 1rem;">
+          <span class="skeleton-bar w-50 skeleton-pulse"></span>
+        </div>
+      `;
+      skeletonGrid.appendChild(skelCard);
+    }
+    container.appendChild(skeletonGrid);
+    return;
+  }
 
   // Themes Grid (3 concepts)
   const grid = document.createElement('div');

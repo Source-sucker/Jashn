@@ -52,10 +52,18 @@ export async function postIntake(intakeData) {
   });
 }
 
-export async function postPlan(brief) {
-  return await request('/api/plan', {
+export async function postPlan(brief, enrich = true) {
+  const url = enrich ? '/api/plan' : '/api/plan?enrich=false';
+  return await request(url, {
     method: 'POST',
     body: JSON.stringify(brief)
+  });
+}
+
+export async function postPlanEnrich(enrichData) {
+  return await request('/api/plan/enrich', {
+    method: 'POST',
+    body: JSON.stringify(enrichData)
   });
 }
 

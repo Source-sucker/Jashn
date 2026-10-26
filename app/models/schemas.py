@@ -184,3 +184,10 @@ class RefineIdeasRequest(BaseModel):
     current_ideas: IdeasReport
     brief: EventBrief
     refinement_prompt: str = Field(max_length=500)
+
+
+class PlanEnrichRequest(BaseModel):
+    brief: EventBrief
+    categories_summary: Optional[str] = None
+    days_remaining: Optional[int] = None
+

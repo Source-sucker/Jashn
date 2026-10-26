@@ -11,6 +11,7 @@ from app.models.schemas import (
     IdeasReport,
     IntakeRequest,
     IntakeResponse,
+    PlanEnrichRequest,
     PlanResponse,
     RefineIdeasRequest,
     ReplanRequest,
@@ -18,7 +19,7 @@ from app.models.schemas import (
     ThemeIdea,
 )
 from app.services.ai_client import ai_client
-from app.services.planner import generate_plan, process_intake
+from app.services.planner import enrich_plan_ideas, generate_plan, process_intake
 from app.services.replan import compute_replan
 
 logger = logging.getLogger("jashn.routes")
@@ -65,15 +66,33 @@ async def intake_endpoint(request: IntakeRequest) -> IntakeResponse:
 
 
 @router.post("/plan", response_model=PlanResponse)
-async def plan_endpoint(brief: EventBrief) -> PlanResponse:
+async def plan_endpoint(brief: EventBrief, enrich: bool = True) -> PlanResponse:
     """Generates complete budget, timeline, vendor checklist, and personalized ideas."""
     try:
-        return await generate_plan(brief)
+        return await generate_plan(brief, enrich=enrich)
     except Exception as e:
         logger.error(f"Error in /api/plan: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to generate celebration plan. Please verify event parameters."
+        )
+
+
+@router.post("/plan/enrich", response_model=IdeasReport)
+async def plan_enrich_endpoint(request: PlanEnrichRequest) -> IdeasReport:
+    """Asynchronously generates personalized AI themes & vendor questions for progressive UI."""
+    try:
+        ideas_report, _, _ = await enrich_plan_ideas(
+            brief=request.brief,
+            categories_summary=request.categories_summary,
+            days_remaining=request.days_remaining
+        )
+        return ideas_report
+    except Exception as e:
+        logger.error(f"Error in /api/plan/enrich: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to enrich celebration themes."
         )
 
 
