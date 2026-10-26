@@ -182,14 +182,14 @@ DETERMINISTIC ENGINES                  GEMINI ENRICHMENT (Single Call)
 
 ### 4.2 Timeline Engine (`app/services/timeline.py`)
 1. **Backward Scheduling**:
-   - Event Date = $T_0$.
-   - Tasks defined with standard lead times: $T - 180$ days, $T - 90$ days, $T - 30$ days, $T - 14$ days, $T - 7$ days, $T - 1$ day, $T_0$ (Day of Event).
+   - Event Date = T0.
+   - Tasks defined with standard lead times: T - 180 days, T - 90 days, T - 30 days, T - 14 days, T - 7 days, T - 1 day, T0 (Day of Event).
 2. **Proportional Compression ("Rush")**:
-   - Let standard lead time be $L_{std}$ (e.g. 120 days). If actual days remaining $D_{avail} < L_{std}$:
-     - Scale task target dates proportionally: $D_{due} = \text{round}\left(D_{avail} \times \frac{L_{task\_offset}}{L_{std}}\right)$.
+   - Let standard lead time be L_std (e.g. 120 days). If actual days remaining D_avail < L_std:
+     - Scale task target dates proportionally: `D_due = round(D_avail * L_task_offset / L_std)`.
      - Flag tasks with `is_rush = True`.
 3. **Urgency & Overdue Classification**:
-   - If scheduled $D_{due} \le \text{today}$, mark `is_urgent = True`.
+   - If scheduled D_due <= today, mark `is_urgent = True`.
 4. **Dependency Resolution**:
    - Tasks contain `depends_on: list[str]` (e.g., "Confirm Menu" depends on "Book Caterer").
    - If a parent task is incomplete and overdue, dependent tasks are flagged `blocked = True`.
@@ -208,9 +208,9 @@ DETERMINISTIC ENGINES                  GEMINI ENRICHMENT (Single Call)
    - Allocates remaining budget across unlocked categories.
 3. **Engine-Calculated Trade-Off Options**:
    - Automatically computes 2–3 concrete, mathematically validated options:
-     - **Option A (Guest adjustment)**: Trim guest count by $N = \text{ceil}(\text{deficit} / \text{cost\_per\_guest})$ to maintain premium catering.
+     - **Option A (Guest adjustment)**: Trim guest count by estimated count = ceil(deficit / cost_per_guest) to maintain premium catering.
      - **Option B (Decor & entertainment simplification)**: Reallocate 30% of decor and entertainment to cover venue and catering floors.
-     - **Option C (Tier adjustment)**: Shift catering from "Multi-course buffet" to "Curated seasonal menu" saving ₹$X$.
+     - **Option C (Tier adjustment)**: Shift catering from "Multi-course buffet" to "Curated seasonal menu" saving estimated amount.
    - Gemini only provides the empathetic explanation and pros/cons for these calculated options.
 
 ---

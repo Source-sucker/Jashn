@@ -123,13 +123,23 @@ export function initReplanModal(getCurrentPlan, onPlanUpdated) {
 
       const savingP = document.createElement('div');
       savingP.className = 'tradeoff-saving';
-      savingP.textContent = `Calculated Saving: ${formatINR(opt.numeric_saving)}`;
+      savingP.textContent = `Estimated Saving: ${formatINR(opt.numeric_saving)}`;
 
       const descP = document.createElement('p');
       descP.style.fontSize = '0.85rem';
       descP.style.margin = '0.5rem 0';
       descP.style.color = 'var(--text-secondary)';
       descP.textContent = opt.description;
+
+      let noteP = null;
+      if (opt.assumption_note) {
+        noteP = document.createElement('p');
+        noteP.style.fontSize = '0.8rem';
+        noteP.style.margin = '0.25rem 0 0.5rem 0';
+        noteP.style.color = 'var(--text-muted)';
+        noteP.style.fontStyle = 'italic';
+        noteP.textContent = `Note: ${opt.assumption_note}`;
+      }
 
       const prosList = document.createElement('ul');
       prosList.style.fontSize = '0.8rem';
@@ -154,6 +164,7 @@ export function initReplanModal(getCurrentPlan, onPlanUpdated) {
       card.appendChild(tTitle);
       card.appendChild(savingP);
       card.appendChild(descP);
+      if (noteP) card.appendChild(noteP);
       card.appendChild(prosList);
       card.appendChild(btnApply);
       tradeoffsList.appendChild(card);

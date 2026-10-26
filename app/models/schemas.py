@@ -168,6 +168,7 @@ class TradeoffOption(BaseModel):
     impact_type: str  # "guest_reduction" | "decor_simplification" | "catering_tier" | "other"
     numeric_saving: int
     description: str
+    assumption_note: str = ""
     pros: list[str]
     cons: list[str]
     applied_changes: dict[str, Any] = Field(default_factory=dict)

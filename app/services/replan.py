@@ -95,12 +95,13 @@ def compute_replan(
     # Trade-off 1: Guest List Optimization
     if new_guests > 20:
         trim_candidates = max(5, int(math.ceil(new_guests * 0.15)))
+        trim_pct = round((trim_candidates / new_guests) * 100)
         guest_saving = trim_candidates * (new_budget // new_guests)
         guest_saving_rounded = int(round(guest_saving / 100.0) * 100)
         tradeoff_options.append(
             TradeoffOption(
                 id="tradeoff_trim_guests",
-                title=f"Trim Guest List by {trim_candidates} Attendees",
+                title=f"Trim Guest List by ~{trim_pct}% ({trim_candidates} Attendees)",
                 impact_type="guest_reduction",
                 numeric_saving=guest_saving_rounded,
                 description=(
@@ -108,6 +109,7 @@ def compute_replan(
                     f"frees up an estimated ₹{guest_saving_rounded:,} in catering and favor costs, "
                     f"raising your per-guest spending back to a comfortable level."
                 ),
+                assumption_note=f"Estimated savings based on an average allocation of ₹{new_budget // new_guests:,} per attendee. Actual savings depend on caterer minimum plate guarantees.",
                 pros=["Immediate direct reduction in catering and seating costs", "Allows higher hospitality quality for closest circle"],
                 cons=["Requires difficult family conversations on secondary invites"],
                 applied_changes={"guest_count": new_guests - trim_candidates}
@@ -122,13 +124,14 @@ def compute_replan(
         tradeoff_options.append(
             TradeoffOption(
                 id="tradeoff_simplify_decor",
-                title="Adopt Minimalist Sustainable Decor & Local Talent",
+                title="Adopt Minimalist Sustainable Decor & Local Talent (~30% Decor Savings)",
                 impact_type="decor_simplification",
                 numeric_saving=decor_saving,
                 description=(
                     f"Streamlining heavy structural staging and floral props to focus on fairy lights, seasonal marigolds, "
-                    f"and curated Spotify/live acoustic sets saves approximately ₹{decor_saving:,} without affecting food or venue quality."
+                    f"and curated Spotify/live acoustic sets saves an estimated ₹{decor_saving:,} without affecting food or venue quality."
                 ),
+                assumption_note="Estimated 30-35% decor reduction assumes replacing custom metal/wood fabrication with reusable floral and fabric elements.",
                 pros=["Cuts fabrication costs drastically", "Modern aesthetic with lower environmental waste"],
                 cons=["Less opulent stage backdrop and fewer grand mechanical entries"],
                 applied_changes={"budget_reduction": decor_saving}
@@ -142,13 +145,14 @@ def compute_replan(
         tradeoff_options.append(
             TradeoffOption(
                 id="tradeoff_catering_tier",
-                title="Shift to Curated Regional Live-Counters",
+                title="Shift to Curated Regional Live-Counters (~15% Catering Savings)",
                 impact_type="catering_tier",
                 numeric_saving=catering_saving,
                 description=(
                     f"Replacing an overflowing 40-item generic buffet with a tight, high-flavor 18-item signature regional menu "
-                    f"with 2 interactive live chaat/dosa counters saves approximately ₹{catering_saving:,} while delighting guests."
+                    f"with 2 interactive live chaat/dosa counters saves an estimated ₹{catering_saving:,} while delighting guests."
                 ),
+                assumption_note="Estimated 15% menu savings assumes fixed-item live stations rather than high-wastage multi-course spread.",
                 pros=["Guests remember hotter, fresher food with faster counter service", "Zero food wastage"],
                 cons=["Fewer total varieties on the dessert and salad tables"],
                 applied_changes={"catering_saving": catering_saving}
