@@ -150,20 +150,44 @@ export function initIntakeView(onPlanGenerated) {
       vibe: document.getElementById('event-vibe').value.trim() || null
     };
 
-    try {
-      const intakeRes = await postIntake(payload);
+    const isFullyStructured = Boolean(
+      eventType && eventDate && !isNaN(guestCount) && guestCount >= 1 && !isNaN(totalBudget) && totalBudget >= 5000
+    );
 
-      if (!intakeRes.is_complete) {
-        // Show clarifying questions inline
-        renderClarifyingQuestions(intakeRes.clarifying_questions);
-        setLoading(false);
-        return;
+    try {
+      let brief = null;
+
+      if (isFullyStructured) {
+        // Form is fully structured: skip AI intake call completely
+        brief = {
+          event_type: eventType,
+          event_date: eventDate,
+          city: document.getElementById('event-city').value.trim() || 'Tier 2 City',
+          guest_count: guestCount,
+          total_budget: totalBudget,
+          priorities: getPriorities(),
+          venue_preference: document.getElementById('venue-preference').value.trim() || '',
+          dietary_cultural_notes: document.getElementById('dietary-notes').value.trim() || '',
+          vibe: document.getElementById('event-vibe').value.trim() || '',
+          user_description: description
+        };
+      } else {
+        // Use AI intake only for free-text description or when fields are missing
+        const intakeRes = await postIntake(payload);
+
+        if (!intakeRes.is_complete) {
+          // Show clarifying questions inline
+          renderClarifyingQuestions(intakeRes.clarifying_questions);
+          setLoading(false);
+          return;
+        }
+        brief = intakeRes.brief;
       }
 
       // Intake complete: generate plan!
       clarifyingBox.classList.add('hidden');
       announce('Generating tailored budget, timeline, and cultural themes...');
-      const planRes = await postPlan(intakeRes.brief);
+      const planRes = await postPlan(brief);
 
       savePlan(planRes);
       setLoading(false);

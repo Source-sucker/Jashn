@@ -39,6 +39,31 @@ async def test_process_intake_with_ai_complete():
             assert res.brief is not None
             assert res.brief.total_budget == 1200000
             assert res.brief.city == "Lucknow"
+            mock_gen.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_process_intake_skips_ai_when_fully_structured():
+    """Verify process_intake skips AI intake call when critical form fields are fully provided."""
+    with patch("app.services.planner.ai_client.is_available", return_value=True):
+        with patch("app.services.planner.ai_client.generate_json", new_callable=AsyncMock) as mock_gen:
+            req = IntakeRequest(
+                event_type="wedding",
+                event_date="2026-12-15",
+                guest_count=250,
+                total_budget=800000,
+                city="Jaipur",
+                description="We want a royal themed family celebration."
+            )
+            res = await process_intake(req)
+
+            assert res.is_complete is True
+            assert res.brief is not None
+            assert res.brief.event_type == "wedding"
+            assert res.brief.total_budget == 800000
+            assert res.brief.guest_count == 250
+            # AI generation MUST NOT have been invoked
+            mock_gen.assert_not_called()
 
 
 @pytest.mark.asyncio
