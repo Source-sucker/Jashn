@@ -9,6 +9,7 @@ class Settings(BaseModel):
     gemini_model: str = Field(default_factory=lambda: os.getenv("GEMINI_MODEL", "gemini-flash-latest").strip())
     ai_timeout_seconds: int = Field(default_factory=lambda: int(os.getenv("AI_TIMEOUT_SECONDS", "15")))
     rate_limit_per_min: int = Field(default_factory=lambda: int(os.getenv("RATE_LIMIT_PER_MIN", "30")))
+    trusted_proxy_count: int = Field(default_factory=lambda: int(os.getenv("TRUSTED_PROXY_COUNT", "0")))
     allowed_origins: list[str] = Field(default_factory=lambda: Settings._parse_origins(os.getenv("ALLOWED_ORIGINS", "*")))
 
     @staticmethod

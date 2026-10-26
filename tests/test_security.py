@@ -101,3 +101,59 @@ def test_index_html_has_no_inline_scripts_or_handlers():
     on_handlers = re.findall(r"\son[a-zA-Z]+=", content)
     assert len(on_handlers) == 0, f"Found inline on* handlers in index.html: {on_handlers}"
 
+
+def test_resolve_client_ip_behind_proxy():
+    """Verify proxy-aware IP resolution only trusts X-Forwarded-For when configured."""
+    from unittest.mock import MagicMock
+
+    from starlette.datastructures import Headers
+
+    from app.security import resolve_client_ip
+
+    req = MagicMock()
+    req.client.host = "10.0.0.1"
+    req.headers = Headers({"x-forwarded-for": "203.0.113.195, 70.41.3.18"})
+
+    # Case 1: Default safe (trusted_proxy_count = 0) -> uses direct socket IP
+    assert resolve_client_ip(req, trusted_proxy_count=0) == "10.0.0.1"
+
+    # Case 2: trusted_proxy_count = 1 -> uses rightmost IP (closest client behind proxy)
+    assert resolve_client_ip(req, trusted_proxy_count=1) == "70.41.3.18"
+
+    # Case 3: trusted_proxy_count = 2 -> uses 2nd hop from right
+    assert resolve_client_ip(req, trusted_proxy_count=2) == "203.0.113.195"
+
+    # Case 4: No X-Forwarded-For present
+    req_no_header = MagicMock()
+    req_no_header.client.host = "10.0.0.2"
+    req_no_header.headers = Headers({})
+    assert resolve_client_ip(req_no_header, trusted_proxy_count=1) == "10.0.0.2"
+
+
+def test_rate_limiter_evicts_stale_ips():
+    """Verify stale IP entries older than 60s are evicted to prevent memory leaks."""
+    from app.security import _IP_REQUEST_LOG, check_rate_limit, evict_stale_ips
+
+    _IP_REQUEST_LOG.clear()
+    t0 = 1000.0
+
+    # Record hits at t0
+    check_rate_limit("1.1.1.1", now=t0)
+    check_rate_limit("2.2.2.2", now=t0)
+    assert len(_IP_REQUEST_LOG) == 2
+
+    # 70 seconds later: both should be evicted
+    t1 = t0 + 70.0
+    evicted = evict_stale_ips(now=t1)
+    assert evicted == 2
+    assert len(_IP_REQUEST_LOG) == 0
+
+    # One fresh, one stale
+    check_rate_limit("old.ip", now=t0)
+    check_rate_limit("fresh.ip", now=t1)
+    evicted = evict_stale_ips(now=t1)
+    assert evicted == 1
+    assert "old.ip" not in _IP_REQUEST_LOG
+    assert "fresh.ip" in _IP_REQUEST_LOG
+
+
