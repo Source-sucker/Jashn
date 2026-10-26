@@ -166,9 +166,13 @@ async def refine_ideas_endpoint(request: RefineIdeasRequest) -> IdeasReport:
                             )
                         )
                 if len(refined_themes) >= 2:
+                    raw_note = str(res.get("cultural_alignment_note", f"Refined with request: '{request.refinement_prompt}'."))
+                    import re
+                    note_sentences = re.split(r"(?<=[.!?])\s+", raw_note.strip())
+                    capped_note = " ".join(note_sentences[:2]) if len(note_sentences) > 2 else raw_note.strip()
                     return IdeasReport(
                         themes=refined_themes,
-                        cultural_alignment_note=str(res.get("cultural_alignment_note", f"Refined with request: '{request.refinement_prompt}'."))
+                        cultural_alignment_note=capped_note
                     )
         except Exception as e:
             logger.warning(f"AI refinement failed, falling back to local adjustment: {e}")

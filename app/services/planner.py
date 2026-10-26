@@ -244,7 +244,10 @@ async def enrich_plan_ideas(
                             )
                         )
 
-                cultural_note = str(enrichment_data.get("cultural_alignment_note", ""))
+                raw_note = str(enrichment_data.get("cultural_alignment_note", ""))
+                import re
+                note_sentences = re.split(r"(?<=[.!?])\s+", raw_note.strip())
+                cultural_note = " ".join(note_sentences[:2]) if len(note_sentences) > 2 else raw_note.strip()
                 v_qs = enrichment_data.get("vendor_questions", {})
                 if isinstance(v_qs, dict):
                     vendor_custom_questions = v_qs
