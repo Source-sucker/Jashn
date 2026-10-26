@@ -128,7 +128,7 @@ async def refine_ideas_endpoint(request: RefineIdeasRequest) -> IdeasReport:
                 }
             )
 
-            res = await ai_client.generate_json(prompt)
+            res = await ai_client.generate_json(prompt, task="refine")
             if res and isinstance(res, dict) and "themes" in res:
                 refined_themes = []
                 for idx, t in enumerate(res.get("themes", [])[:3]):

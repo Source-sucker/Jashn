@@ -92,7 +92,7 @@ async def process_intake(request: IntakeRequest) -> IntakeResponse:
                 }
             )
 
-            ai_data = await ai_client.generate_json(prompt)
+            ai_data = await ai_client.generate_json(prompt, task="intake")
             if ai_data and isinstance(ai_data, dict):
                 is_comp = bool(ai_data.get("is_complete", False))
                 brief_data = ai_data.get("brief")
@@ -243,7 +243,7 @@ async def generate_plan(brief: EventBrief) -> PlanResponse:
                 }
             )
 
-            enrichment_data = await ai_client.generate_json(prompt)
+            enrichment_data = await ai_client.generate_json(prompt, task="plan")
             if enrichment_data and isinstance(enrichment_data, dict):
                 raw_themes = enrichment_data.get("themes", [])
                 for idx, t in enumerate(raw_themes[:3]):

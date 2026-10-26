@@ -74,7 +74,7 @@ class GeminiClient:
         for attempt in range(2):  # initial attempt + 1 retry
             try:
                 result_json = await asyncio.wait_for(
-                    self._call_gemini_api(prompt),
+                    self._call_gemini_api(prompt, task=task),
                     timeout=effective_timeout
                 )
                 if result_json:
@@ -97,16 +97,27 @@ class GeminiClient:
         logger.error(f"Gemini API exhausted attempts. Falling back. Last error: {last_error}")
         return None
 
-    async def _call_gemini_api(self, prompt: str) -> Optional[dict[str, Any]]:
+    TASK_TOKEN_LIMITS = {
+        "intake": 450,
+        "plan": 750,
+        "enrich": 750,
+        "refine": 600,
+        "replan": 350,
+    }
+
+    async def _call_gemini_api(self, prompt: str, task: str = "general") -> Optional[dict[str, Any]]:
         """
         Runs synchronous SDK call inside default thread pool executor to remain async-friendly.
+        Caps max_output_tokens per task to minimize generation latency.
         """
         loop = asyncio.get_running_loop()
 
         def _sync_call():
+            max_tokens = self.TASK_TOKEN_LIMITS.get(task, 750)
             config = types.GenerateContentConfig(
                 response_mime_type="application/json",
-                temperature=0.3
+                temperature=0.2,
+                max_output_tokens=max_tokens
             )
             response = self._client.models.generate_content(
                 model=self.model_name,

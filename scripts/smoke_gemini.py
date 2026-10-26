@@ -42,11 +42,10 @@ async def run_smoke_test():
         print("=" * 70)
         sys.exit(0)
 
-    masked_key = api_key[:4] + "..." + api_key[-4:] if len(api_key) > 8 else "***"
     print("=" * 70)
     print("JASHN REAL GEMINI SMOKE TEST")
     print(f"Model configured: {settings.gemini_model}")
-    print(f"API Key present:  {masked_key} (safe masked)")
+    print("API Key present:  [Configured]")
     print(f"Timeout setting:  {settings.ai_timeout_seconds}s")
     print("=" * 70)
 
