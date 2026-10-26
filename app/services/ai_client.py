@@ -43,19 +43,27 @@ class GeminiClient:
     def is_available(self) -> bool:
         return bool(self._client and self.api_key)
 
-    async def generate_json(self, prompt: str, schema_class: Optional[Any] = None) -> Optional[dict[str, Any]]:
+    async def generate_json(
+        self,
+        prompt: str,
+        schema_class: Optional[Any] = None,
+        task: str = "general",
+        timeout: Optional[float] = None
+    ) -> Optional[dict[str, Any]]:
         """
         Executes Gemini content generation expecting a JSON response.
         Enforces:
         - Instant return if no API key
         - In-memory cache hit return
-        - Strict timeout (AI_TIMEOUT_SECONDS)
+        - Strict timeout (AI_TIMEOUT_SECONDS or per-task override)
         - Exactly 1 retry on transient failure
         - Markdown/fenced JSON extraction
         """
         if not self.is_available():
             logger.info("Gemini API key not configured. Using deterministic fallback.")
             return None
+
+        effective_timeout = timeout if timeout is not None else settings.get_task_timeout(task)
 
         cache_key = _get_cache_key(prompt)
         if cache_key in _LRU_CACHE:
@@ -67,7 +75,7 @@ class GeminiClient:
             try:
                 result_json = await asyncio.wait_for(
                     self._call_gemini_api(prompt),
-                    timeout=self.timeout
+                    timeout=effective_timeout
                 )
                 if result_json:
                     # Update cache
@@ -77,7 +85,7 @@ class GeminiClient:
                     _LRU_CACHE[cache_key] = result_json
                     return result_json
             except asyncio.TimeoutError as e:
-                logger.warning(f"Gemini API timed out after {self.timeout}s (attempt {attempt + 1}): {e}")
+                logger.warning(f"Gemini API timed out after {effective_timeout}s (attempt {attempt + 1}): {e}")
                 last_error = e
             except Exception as e:
                 logger.warning(f"Gemini API call failed (attempt {attempt + 1}): {e}")
