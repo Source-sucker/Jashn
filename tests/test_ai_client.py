@@ -122,3 +122,96 @@ async def test_ai_client_call_gemini_api_empty_text():
 
         parsed = await client._call_gemini_api("Test prompt")
         assert parsed is None
+
+
+def test_settings_task_timeouts():
+    """Verify default timeout is 40 and per-task timeouts are correctly resolved."""
+    from app.config import Settings
+
+    s = Settings(
+        ai_timeout_seconds=40,
+        ai_timeout_intake=35,
+        ai_timeout_plan=45,
+        ai_timeout_refine=30,
+        ai_timeout_replan=25,
+    )
+    assert s.ai_timeout_seconds == 40
+    assert s.get_task_timeout("intake") == 35.0
+    assert s.get_task_timeout("plan") == 45.0
+    assert s.get_task_timeout("enrich") == 45.0
+    assert s.get_task_timeout("refine") == 30.0
+    assert s.get_task_timeout("replan") == 25.0
+    assert s.get_task_timeout("unknown_task") == 40.0
+
+
+@pytest.mark.asyncio
+async def test_ai_client_model_fallback_on_not_found():
+    """Verify GeminiClient tries fallback models on 404 Not Found error."""
+    from unittest.mock import MagicMock
+
+    with patch("app.services.ai_client.settings.gemini_api_key", "fake-key-for-test"):
+        with patch("app.services.ai_client.settings.gemini_model", "gemini-old-model"):
+            with patch("app.services.ai_client.settings.gemini_model_fallbacks_raw", "gemini-fallback-1,gemini-fallback-2"):
+                client = GeminiClient()
+                assert client.model_name == "gemini-old-model"
+                assert client.fallback_models == ["gemini-fallback-1", "gemini-fallback-2"]
+
+                mock_sdk = MagicMock()
+                mock_success_res = MagicMock()
+                mock_success_res.text = "```json\n{\"status\": \"fallback_worked\"}\n```"
+
+                # First model throws 404, fallback model succeeds
+                mock_sdk.models.generate_content.side_effect = [
+                    Exception("404 Not Found: model gemini-old-model is not found"),
+                    mock_success_res
+                ]
+                client._client = mock_sdk
+
+                result = await client._call_gemini_api("Test prompt", task="plan")
+                assert result == {"status": "fallback_worked"}
+                assert mock_sdk.models.generate_content.call_count == 2
+                called_models = [call.kwargs.get("model") for call in mock_sdk.models.generate_content.call_args_list]
+                assert called_models == ["gemini-old-model", "gemini-fallback-1"]
+
+
+@pytest.mark.asyncio
+async def test_ai_client_model_fallback_on_overload():
+    """Verify GeminiClient tries fallback models on 503 / 429 overload error."""
+    from unittest.mock import MagicMock
+
+    with patch("app.services.ai_client.settings.gemini_api_key", "fake-key-for-test"):
+        with patch("app.services.ai_client.settings.gemini_model", "gemini-primary"):
+            with patch("app.services.ai_client.settings.gemini_model_fallbacks_raw", "gemini-backup"):
+                client = GeminiClient()
+                mock_sdk = MagicMock()
+                mock_success_res = MagicMock()
+                mock_success_res.text = "{\"status\": \"overload_recovered\"}"
+
+                mock_sdk.models.generate_content.side_effect = [
+                    Exception("503 Service Unavailable: High demand, model overloaded"),
+                    mock_success_res
+                ]
+                client._client = mock_sdk
+
+                result = await client._call_gemini_api("Test prompt", task="refine")
+                assert result == {"status": "overload_recovered"}
+                assert mock_sdk.models.generate_content.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_ai_client_model_fallback_exhausted():
+    """Verify GeminiClient safely returns None when all models in fallback chain fail."""
+    from unittest.mock import MagicMock
+
+    with patch("app.services.ai_client.settings.gemini_api_key", "fake-key-for-test"):
+        with patch("app.services.ai_client.settings.gemini_model", "gemini-primary"):
+            with patch("app.services.ai_client.settings.gemini_model_fallbacks_raw", "gemini-backup"):
+                client = GeminiClient()
+                mock_sdk = MagicMock()
+                mock_sdk.models.generate_content.side_effect = Exception("503 Service Unavailable")
+                client._client = mock_sdk
+
+                # generate_json catches exceptions across retries and returns None
+                res = await client.generate_json("Prompt triggering all fallbacks to fail")
+                assert res is None
+

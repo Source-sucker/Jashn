@@ -223,3 +223,55 @@ def test_replan_endpoint_exception_handling(client, sample_plan):
         res = client.post("/api/replan", json=replan_payload)
         assert res.status_code == 400
         assert "Could not replan with provided updates" in res.json()["detail"]
+
+
+def test_intake_skips_ai_when_form_structured(client):
+    """Verify /api/intake skips AI when form fields are fully provided."""
+    from unittest.mock import AsyncMock, patch
+
+    with patch("app.services.planner.ai_client.is_available", return_value=True):
+        with patch("app.services.planner.ai_client.generate_json", new_callable=AsyncMock) as mock_gen:
+            payload = {
+                "event_type": "birthday",
+                "event_date": "2026-12-10",
+                "guest_count": 50,
+                "total_budget": 50000,
+                "city": "Bengaluru",
+                "description": "5th birthday party for kids."
+            }
+            res = client.post("/api/intake", json=payload)
+            assert res.status_code == 200
+            data = res.json()
+            assert data["is_complete"] is True
+            assert data["brief"]["event_type"] == "birthday"
+            assert data["brief"]["guest_count"] == 50
+            # AI generation MUST NOT have been called
+            mock_gen.assert_not_called()
+
+
+def test_plan_fast_mode_skips_enrichment(client, sample_brief):
+    """Verify /api/plan?enrich=false returns fast deterministic plan without AI."""
+    payload = sample_brief.model_dump()
+    res = client.post("/api/plan?enrich=false", json=payload)
+    assert res.status_code == 200
+    data = res.json()
+    assert data["is_ai_generated"] is False
+    assert "Fast deterministic plan" in data["ai_status_message"]
+    assert len(data["ideas"]["themes"]) >= 3
+    assert len(data["budget"]["categories"]) > 0
+
+
+def test_plan_enrich_endpoint(client, sample_brief):
+    """Verify /api/plan/enrich returns enriched IdeasReport."""
+    payload = {
+        "brief": sample_brief.model_dump(),
+        "categories_summary": "Food: 4L, Decor: 2L",
+        "days_remaining": 90
+    }
+    res = client.post("/api/plan/enrich", json=payload)
+    assert res.status_code == 200
+    data = res.json()
+    assert "themes" in data
+    assert len(data["themes"]) >= 3
+    assert "cultural_alignment_note" in data
+
