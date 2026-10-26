@@ -31,7 +31,7 @@ jobs:
 
       - name: Run Pytest with Coverage
         run: |
-          pytest --cov=app/services --cov=app/api --cov-report=term-missing
+          pytest --cov=app/services --cov=app/api --cov-fail-under=85 --cov-report=term-missing
 
       - name: Run Node Frontend Unit Tests
         uses: actions/setup-node@v4
