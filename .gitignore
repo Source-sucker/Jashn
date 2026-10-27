@@ -63,3 +63,6 @@ ehthumbs.db
 # Node (just in case)
 node_modules/
 package-lock.json
+
+# Vercel
+.vercel/

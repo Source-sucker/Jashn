@@ -275,3 +275,14 @@ def test_plan_enrich_endpoint(client, sample_brief):
     assert len(data["themes"]) >= 3
     assert "cultural_alignment_note" in data
 
+
+def test_vercel_entrypoint_app():
+    """Verify api/index.py exposes ASGI app instance for Vercel Serverless Function."""
+    from api.index import app as vercel_app
+    assert vercel_app is not None
+    vercel_client = TestClient(vercel_app)
+    res = vercel_client.get("/api/health")
+    assert res.status_code == 200
+    data = res.json()
+    assert data["status"] == "ok"
+

@@ -134,6 +134,22 @@ uvicorn app.main:app --reload --port 8000
 ```
 Open your browser at **`http://localhost:8000`**.
 
+### 4. Deploying to Vercel
+
+Jashn is pre-configured for one-click deployment on [Vercel](https://vercel.com):
+
+1. **Import the Repository:** Connect your GitHub repository in the Vercel Dashboard.
+2. **Set Environment Variables:**
+   - `GEMINI_API_KEY`: Your Google Gemini API Key.
+   - `GEMINI_MODEL` (optional): Defaults to `gemini-3.5-flash-lite`.
+   - `TRUSTED_PROXY_COUNT` (optional): Set to `1` behind Vercel's proxy.
+3. **Deploy:** Vercel automatically detects the Python runtime (`.python-version` 3.12), routes API endpoints to `api/index.py` via Serverless Functions, and delivers frontend assets directly through Vercel's global Edge CDN via `vercel.json`.
+
+Alternatively, deploy using the Vercel CLI:
+```bash
+vercel
+```
+
 ---
 
 ## 7. Running Tests & Quality Checks
@@ -145,7 +161,7 @@ pytest --cov=app/services --cov=app/api --cov-fail-under=85 -v
 
 ### Run Ruff Linter
 ```bash
-ruff check app tests
+ruff check app api tests
 ```
 
 ### Run Frontend Unit Tests (Node:test)
