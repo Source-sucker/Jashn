@@ -41,46 +41,32 @@ export function renderIdeasView(container, plan) {
 
   container.appendChild(header);
 
-  // If AI is currently generating themes progressively, show aria-live status and skeleton cards
+  // If AI is currently generating themes progressively, show live status while displaying curated themes immediately
   if (plan.ai_pending) {
     const progressStatus = document.createElement('div');
-    progressStatus.className = 'ai-progress-status';
+    progressStatus.className = 'ai-progress-status ready-preview';
     progressStatus.setAttribute('role', 'status');
     progressStatus.setAttribute('aria-live', 'polite');
     progressStatus.innerHTML = `
       <span class="btn-spinner" aria-hidden="true"></span>
-      <span>Calculating budget & timeline... Ready! Crafting personalized themes & ideas...</span>
+      <div>
+        <strong>Curated themes ready!</strong>
+        <span> Gemini GenAI is personalizing custom local highlights for ${brief.city || 'your celebration'} in the background...</span>
+      </div>
     `;
     container.appendChild(progressStatus);
-
-    const skeletonGrid = document.createElement('div');
-    skeletonGrid.className = 'themes-grid';
-    for (let i = 0; i < 3; i++) {
-      const skelCard = document.createElement('div');
-      skelCard.className = 'skeleton-card';
-      skelCard.innerHTML = `
-        <div>
-          <span class="skeleton-bar w-35 skeleton-pulse"></span>
-          <span class="skeleton-bar w-75 h-28 skeleton-pulse"></span>
-          <span class="skeleton-bar w-50 skeleton-pulse"></span>
-          <div style="margin-top: 1rem;">
-            <span class="skeleton-bar w-35 skeleton-pulse"></span>
-            <span class="skeleton-bar w-75 skeleton-pulse"></span>
-          </div>
-          <div style="margin-top: 1rem;">
-            <span class="skeleton-bar w-50 skeleton-pulse"></span>
-            <span class="skeleton-bar w-75 skeleton-pulse"></span>
-            <span class="skeleton-bar w-75 skeleton-pulse"></span>
-          </div>
-        </div>
-        <div style="border-top: 1px solid var(--border-subtle); padding-top: 0.75rem; margin-top: 1rem;">
-          <span class="skeleton-bar w-50 skeleton-pulse"></span>
-        </div>
-      `;
-      skeletonGrid.appendChild(skelCard);
-    }
-    container.appendChild(skeletonGrid);
-    return;
+  } else if (plan.is_ai_generated) {
+    const progressStatus = document.createElement('div');
+    progressStatus.className = 'ai-progress-status success';
+    progressStatus.setAttribute('role', 'status');
+    progressStatus.innerHTML = `
+      <span aria-hidden="true" style="font-size: 1.1rem;">✨</span>
+      <div>
+        <strong>Personalized with Gemini GenAI:</strong>
+        <span> Tailored for ${brief.city} with authentic decor, local menu highlights, and entertainment.</span>
+      </div>
+    `;
+    container.appendChild(progressStatus);
   }
 
   // Themes Grid (3 concepts)

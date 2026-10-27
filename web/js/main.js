@@ -22,9 +22,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const btnExport = document.getElementById('btn-export-plan');
   const btnReset = document.getElementById('btn-reset-plan');
 
-  // Check backend health & AI availability
-  try {
-    const health = await fetchHealth();
+  // Check backend health & AI availability in background (non-blocking)
+  fetchHealth().then(health => {
     if (!health.ai_available) {
       aiBanner.classList.add('fallback-mode');
       aiStatusText.textContent = '⚡ Rule-based planning active (Gemini API key unconfigured)';
@@ -33,9 +32,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       aiStatusText.textContent = `✨ Gemini GenAI Active (${health.model})`;
     }
     aiBanner.classList.remove('hidden');
-  } catch (err) {
+  }).catch(err => {
     console.warn('Backend health check warning:', err);
-  }
+  });
 
   // Initialize Intake Controller
   initIntakeView((newPlan, meta) => {

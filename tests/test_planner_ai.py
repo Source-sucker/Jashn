@@ -152,3 +152,41 @@ async def test_generate_plan_with_ai_enrichment(sample_brief):
             assert plan.ideas.themes[0].title == "Nawabi Royal Banquet"
             catering_vendor = next(v for v in plan.vendors if v.category_id == "catering")
             assert "Can you do live tandoor and copper handi presentation on-site?" in catering_vendor.questions_to_ask
+
+
+@pytest.mark.asyncio
+async def test_deterministic_intake_extraction_when_ai_unavailable():
+    """Verify process_intake falls back to fast deterministic regex extraction when AI is unavailable."""
+    with patch("app.services.planner.ai_client.is_available", return_value=False):
+        req = IntakeRequest(
+            description="Planning sister's wedding in Lucknow on 2027-02-24 for 300 guests with 12 Lakh budget."
+        )
+        res = await process_intake(req)
+
+        assert res.is_complete is True
+        assert res.brief is not None
+        assert res.brief.event_type == "wedding"
+        assert res.brief.guest_count == 300
+        assert res.brief.total_budget == 1200000
+        assert res.brief.city == "Lucknow"
+        assert res.brief.event_date == "2027-02-24"
+
+
+def test_extract_intake_facts_helper():
+    """Verify _extract_intake_facts helper parses various Indian expressions."""
+    from app.services.planner import _extract_intake_facts
+
+    facts = _extract_intake_facts("5th birthday party in Bengaluru with 35 kids and 45000 budget in 3 months")
+    assert facts["event_type"] == "birthday"
+    assert facts["guest_count"] == 35
+    assert facts["total_budget"] == 45000
+    assert facts["city"] == "Bengaluru"
+    assert "event_date" in facts
+
+    facts2 = _extract_intake_facts("Community puja celebration in Kolkata with 500 people and budget of 2.5 Lakhs in October")
+    assert facts2["event_type"] == "community"
+    assert facts2["guest_count"] == 500
+    assert facts2["total_budget"] == 250000
+    assert facts2["city"] == "Kolkata"
+    assert "event_date" in facts2
+

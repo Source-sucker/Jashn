@@ -100,9 +100,9 @@ class GeminiClient:
 
     TASK_TOKEN_LIMITS = {
         "intake": 450,
-        "plan": 750,
-        "enrich": 750,
-        "refine": 600,
+        "plan": 900,
+        "enrich": 900,
+        "refine": 750,
         "replan": 350,
     }
 

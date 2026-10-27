@@ -179,6 +179,32 @@ export function renderOverviewView(container, plan, onSwitchTab) {
     tasksCard.appendChild(btnGoTimeline);
   }
 
+  // Themes Quick Glance Card
+  const themesCard = document.createElement('div');
+  themesCard.className = 'card';
+  const thTitle = document.createElement('h3');
+  thTitle.className = 'card-title';
+  thTitle.textContent = '✨ Curated Concepts & Menus';
+
+  const thDesc = document.createElement('p');
+  thDesc.style.marginTop = '0.5rem';
+  thDesc.style.color = 'var(--text-secondary)';
+  const themeNames = (plan.ideas && plan.ideas.themes)
+    ? plan.ideas.themes.map(t => t.title).join(' • ')
+    : 'Curated themes ready to explore';
+  thDesc.textContent = themeNames;
+
+  const btnGoThemes = document.createElement('button');
+  btnGoThemes.className = 'btn btn-secondary';
+  btnGoThemes.style.marginTop = '1rem';
+  btnGoThemes.textContent = 'Explore Decor & Menus →';
+  btnGoThemes.addEventListener('click', () => onSwitchTab('ideas'));
+
+  themesCard.appendChild(thTitle);
+  themesCard.appendChild(thDesc);
+  themesCard.appendChild(btnGoThemes);
+  grid.appendChild(themesCard);
+
   grid.appendChild(tasksCard);
   container.appendChild(grid);
 }

@@ -1,4 +1,5 @@
 import logging
+import re
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -35,28 +36,141 @@ def _format_prompt(template: str, params: dict[str, Any]) -> str:
     return template
 
 
+def _extract_intake_facts(desc: str) -> dict[str, Any]:
+    """
+    Fast deterministic extractor to instantly parse celebration facts from natural language.
+    Eliminates up to 30 seconds of AI latency when required fields can be parsed deterministically.
+    """
+    if not desc:
+        return {}
+    facts: dict[str, Any] = {}
+    lower = desc.lower()
+
+    # 1. Event Type
+    if re.search(r"\b(wedding|shaadi|shadi|vivaah|marriage|reception|sangeet|mehendi|haldi|baraat)\b", lower):
+        facts["event_type"] = "wedding"
+    elif re.search(r"\b(birthday|bday|janamdin)\b", lower):
+        facts["event_type"] = "birthday"
+    elif re.search(r"\b(anniversary|salgirah)\b", lower):
+        facts["event_type"] = "anniversary"
+    elif re.search(r"\b(community|puja|pooja|festival|diwali|navratri|durga|ganesh|samajik|jagran)\b", lower):
+        facts["event_type"] = "community"
+    elif re.search(r"\b(corporate|annual meet|conference|seminar|office party|retreat)\b", lower):
+        facts["event_type"] = "corporate"
+
+    # 2. Guest Count
+    guest_match = re.search(
+        r"(?:for|with|around|approx|approximately)?\s*(\d{1,5})\s*(?:guests?|people|attendees?|pax|persons?|members?|baraatis?|kids?|children)",
+        desc,
+        re.IGNORECASE,
+    ) or re.search(r"(?:guests?|attendees?|pax|people|kids?|children)\s*(?:of|around|approx|count|:)?\s*(\d{1,5})", desc, re.IGNORECASE)
+    if guest_match:
+        try:
+            cnt = int(guest_match.group(1))
+            if cnt > 0:
+                facts["guest_count"] = cnt
+        except ValueError:
+            pass
+
+    # 3. Budget in INR
+    crore_match = re.search(r"(?:₹|rs\.?|inr)?\s*(\d+(?:\.\d+)?)\s*(?:crores?|crs?|cr)\b", desc, re.IGNORECASE)
+    lakh_match = re.search(r"(?:₹|rs\.?|inr)?\s*(\d+(?:\.\d+)?)\s*(?:lakhs?|lacs?|lac|l)\b", desc, re.IGNORECASE)
+    thousand_match = re.search(r"(?:₹|rs\.?|inr)?\s*(\d+(?:\.\d+)?)\s*(?:k|thousand)\b", desc, re.IGNORECASE)
+    budget_prefix = re.search(r"(?:budget\s*(?:of|is|:)?\s*)(?:₹|rs\.?|inr)?\s*(\d[\d,]+)", desc, re.IGNORECASE)
+    budget_suffix = re.search(r"(\d[\d,]+)\s*(?:budget|inr|rs|rupees)", desc, re.IGNORECASE)
+    direct_curr = re.search(r"(?:₹|rs\.?)\s*(\d[\d,]+)", desc, re.IGNORECASE)
+
+    if crore_match:
+        facts["total_budget"] = int(float(crore_match.group(1)) * 10_000_000)
+    elif lakh_match:
+        facts["total_budget"] = int(float(lakh_match.group(1)) * 100_000)
+    elif thousand_match:
+        facts["total_budget"] = int(float(thousand_match.group(1)) * 1_000)
+    elif budget_prefix:
+        try:
+            clean = int(budget_prefix.group(1).replace(",", ""))
+            if clean >= 5000:
+                facts["total_budget"] = clean
+        except ValueError:
+            pass
+    elif budget_suffix:
+        try:
+            clean = int(budget_suffix.group(1).replace(",", ""))
+            if clean >= 5000:
+                facts["total_budget"] = clean
+        except ValueError:
+            pass
+    elif direct_curr:
+        try:
+            clean = int(direct_curr.group(1).replace(",", ""))
+            if clean >= 5000:
+                facts["total_budget"] = clean
+        except ValueError:
+            pass
+
+    # 4. City
+    known_cities = [
+        "Lucknow", "Jaipur", "Delhi", "New Delhi", "Mumbai", "Bengaluru", "Bangalore",
+        "Kolkata", "Hyderabad", "Chennai", "Pune", "Ahmedabad", "Chandigarh", "Udaipur",
+        "Agra", "Varanasi", "Indore", "Bhopal", "Goa", "Surat", "Patna", "Kanpur",
+        "Nagpur", "Vadodara", "Ghaziabad", "Ludhiana", "Nashik", "Faridabad", "Meerut",
+        "Rajkot", "Kochi", "Coimbatore", "Amritsar", "Dehradun", "Jodhpur", "Shimla",
+        "Noida", "Gurgaon", "Gurugram",
+    ]
+    for c in known_cities:
+        if re.search(rf"\b{c}\b", desc, re.IGNORECASE):
+            facts["city"] = c
+            break
+
+    # 5. Date
+    iso_date = re.search(r"\b(\d{4}-\d{2}-\d{2})\b", desc)
+    if iso_date:
+        facts["event_date"] = iso_date.group(1)
+    else:
+        month_names = {
+            "january": 1, "february": 2, "march": 3, "april": 4, "may": 5, "june": 6,
+            "july": 7, "august": 8, "september": 9, "october": 10, "november": 11, "december": 12,
+            "jan": 1, "feb": 2, "mar": 3, "apr": 4, "jun": 6, "jul": 7, "aug": 8,
+            "sep": 9, "sept": 9, "oct": 10, "nov": 11, "dec": 12,
+        }
+        in_months = re.search(r"\bin\s*(\d+)\s*months?\b", desc, re.IGNORECASE)
+        if in_months:
+            from datetime import date, timedelta
+            n = int(in_months.group(1))
+            facts["event_date"] = (date.today() + timedelta(days=n * 30)).strftime("%Y-%m-%d")
+        else:
+            for m_name, m_num in month_names.items():
+                if re.search(rf"\b{m_name}\b", lower):
+                    from datetime import date
+                    today = date.today()
+                    year = today.year if m_num > today.month else today.year + 1
+                    facts["event_date"] = f"{year}-{m_num:02d}-15"
+                    break
+
+    return facts
+
+
 async def process_intake(request: IntakeRequest) -> IntakeResponse:
     """
     Intake processor:
     - Parses free-text description and form fields
-    - If Gemini is active, extracts structured brief or generates up to 3 clarifying questions
-    - If Gemini is unavailable, deterministically inspects fields:
-      - If type, date, guests, budget are provided -> complete brief
-      - If missing -> returns targeted clarifying questions
+    - When form is fully structured, skips AI intake completely
+    - When free-text is provided and fields are missing, uses Gemini to extract or clarify
+    - If AI is unavailable or fails, uses fast deterministic extraction before falling back to clarifying questions
     """
-    # 1. Deterministic extraction fallback check first
     req_type = request.event_type or ""
     req_date = request.event_date or ""
     req_guests = request.guest_count
     req_budget = request.total_budget
+    req_city = request.city or ""
     desc = (request.description or "").strip()
 
-    # If all critical fields provided via form directly
+    # 1. Skip AI intake call completely if all critical form fields are provided
     if req_type and req_date and req_guests and req_budget:
         brief = EventBrief(
             event_type=req_type,
             event_date=req_date,
-            city=request.city or "Tier 2 City",
+            city=req_city or "Tier 2 City",
             guest_count=req_guests,
             total_budget=req_budget,
             priorities=request.priorities or [],
@@ -147,7 +261,41 @@ async def process_intake(request: IntakeRequest) -> IntakeResponse:
         except Exception as e:
             logger.warning(f"AI intake extraction error: {e}")
 
-    # 3. Deterministic clarifying questions fallback
+    # 3. Deterministic fallback extraction if AI was unavailable or incomplete
+    if desc:
+        extracted = _extract_intake_facts(desc)
+        if not req_type and extracted.get("event_type"):
+            req_type = extracted["event_type"]
+        if not req_date and extracted.get("event_date"):
+            req_date = extracted["event_date"]
+        if not req_guests and extracted.get("guest_count"):
+            req_guests = extracted["guest_count"]
+        if not req_budget and extracted.get("total_budget"):
+            req_budget = extracted["total_budget"]
+        if not req_city and extracted.get("city"):
+            req_city = extracted["city"]
+
+        if req_type and req_date and req_guests and req_budget:
+            brief = EventBrief(
+                event_type=req_type,
+                event_date=req_date,
+                city=req_city or "Tier 2 City",
+                guest_count=req_guests,
+                total_budget=req_budget,
+                priorities=request.priorities or [],
+                venue_preference=request.venue_preference or "",
+                dietary_cultural_notes=request.dietary_cultural_notes or "",
+                vibe=request.vibe or "",
+                user_description=desc
+            )
+            return IntakeResponse(
+                is_complete=True,
+                brief=brief,
+                clarifying_questions=[],
+                extracted_summary=f"Event plan ready for {brief.event_type.title()} on {brief.event_date} with {brief.guest_count} guests."
+            )
+
+    # 4. Deterministic clarifying questions fallback
     questions: list[ClarifyingQuestion] = []
     if not req_type:
         questions.append(
@@ -225,7 +373,7 @@ async def enrich_plan_ideas(
                 }
             )
 
-            enrichment_data = await ai_client.generate_json(prompt, task="plan")
+            enrichment_data = await ai_client.generate_json(prompt, task="enrich", timeout=12.0)
             if enrichment_data and isinstance(enrichment_data, dict):
                 raw_themes = enrichment_data.get("themes", [])
                 for idx, t in enumerate(raw_themes[:3]):

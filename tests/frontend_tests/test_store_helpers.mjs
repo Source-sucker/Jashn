@@ -57,3 +57,21 @@ test('validatePlanSchema correctly validates v1 plan structures', () => {
   assert.equal(validatePlanSchema(null), false);
   assert.equal(validatePlanSchema({}), false);
 });
+
+test('extractDetailsFromText accurately parses Indian natural language celebration descriptions', async () => {
+  const { extractDetailsFromText } = await import('../../web/js/views/intakeView.js');
+  const text = "Sister's wedding in Lucknow for 300 guests with 12 Lakh budget in February";
+  const parsed = extractDetailsFromText(text);
+  assert.equal(parsed.event_type, 'wedding');
+  assert.equal(parsed.guest_count, 300);
+  assert.equal(parsed.total_budget, 1200000);
+  assert.equal(parsed.city, 'Lucknow');
+  assert.ok(parsed.event_date);
+
+  const bdayText = "Daughter's 5th birthday party in Bengaluru with 35 kids and 45000 budget";
+  const bdayParsed = extractDetailsFromText(bdayText);
+  assert.equal(bdayParsed.event_type, 'birthday');
+  assert.equal(bdayParsed.city, 'Bengaluru');
+  assert.equal(bdayParsed.total_budget, 45000);
+});
+
