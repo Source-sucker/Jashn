@@ -1,12 +1,12 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "functions": {
-    "app/main.py": {
-      "includeFiles": "web/**",
+    "api/index.py": {
+      "includeFiles": "{web/**,public/**}",
       "maxDuration": 30
     },
-    "api/index.py": {
-      "includeFiles": "web/**",
+    "app/main.py": {
+      "includeFiles": "{web/**,public/**}",
       "maxDuration": 30
     }
   },
@@ -49,18 +49,6 @@
     {
       "source": "/openapi.json",
       "destination": "/api/index.py"
-    },
-    {
-      "source": "/css/(.*)",
-      "destination": "/web/css/$1"
-    },
-    {
-      "source": "/js/(.*)",
-      "destination": "/web/js/$1"
-    },
-    {
-      "source": "/",
-      "destination": "/web/index.html"
     },
     {
       "source": "/(.*)",

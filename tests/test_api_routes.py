@@ -286,3 +286,19 @@ def test_vercel_entrypoint_app():
     data = res.json()
     assert data["status"] == "ok"
 
+
+def test_root_and_static_routes(client):
+    """Verify root HTML and web alias routes return 200 OK and HTML content."""
+    res_root = client.get("/")
+    assert res_root.status_code == 200
+    assert "Jashn" in res_root.text
+
+    res_index = client.get("/index.html")
+    assert res_index.status_code == 200
+
+    res_alias = client.get("/web/index.html")
+    assert res_alias.status_code == 200
+
+    res_css = client.get("/css/styles.css")
+    assert res_css.status_code == 200
+

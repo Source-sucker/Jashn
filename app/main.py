@@ -1,9 +1,10 @@
 import logging
+import os
 from pathlib import Path
 
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from app.api.routes import router
@@ -16,7 +17,29 @@ logging.basicConfig(
 )
 logger = logging.getLogger("jashn.main")
 
-WEB_DIR = Path(__file__).parent.parent / "web"
+
+def resolve_web_dir() -> Path:
+    """
+    Resolves the directory containing the static frontend assets.
+    Handles standard local directory structures as well as Vercel/Lambda serverless bundles.
+    """
+    candidates = [
+        Path(os.getcwd()) / "public",
+        Path(os.getcwd()) / "web",
+        Path(__file__).resolve().parent.parent / "public",
+        Path(__file__).resolve().parent.parent / "web",
+        Path(__file__).resolve().parent / "public",
+        Path(__file__).resolve().parent / "web",
+        Path("/var/task/public"),
+        Path("/var/task/web"),
+    ]
+    for candidate in candidates:
+        if candidate.is_dir() and (candidate / "index.html").is_file():
+            return candidate
+    return Path(__file__).resolve().parent.parent / "web"
+
+
+WEB_DIR = resolve_web_dir()
 
 
 def create_app() -> FastAPI:
@@ -55,11 +78,38 @@ def create_app() -> FastAPI:
             }
         )
 
-    # Mount static frontend
-    if WEB_DIR.exists():
-        app.mount("/", StaticFiles(directory=str(WEB_DIR), html=True), name="web")
+    # Frontend Root & Alias Routes
+    web_dir = resolve_web_dir()
+
+    @app.get("/", include_in_schema=False)
+    @app.get("/index.html", include_in_schema=False)
+    @app.get("/web", include_in_schema=False)
+    @app.get("/web/index.html", include_in_schema=False)
+    async def serve_index():
+        index_file = web_dir / "index.html"
+        if index_file.is_file():
+            return FileResponse(str(index_file))
+        return JSONResponse(status_code=404, content={"detail": f"index.html not found in {web_dir}"})
+
+    @app.get("/favicon.ico", include_in_schema=False)
+    async def serve_favicon():
+        fav = web_dir / "favicon.ico"
+        if fav.is_file():
+            return FileResponse(str(fav))
+        return Response(status_code=204)
+
+    # Mount static assets
+    if (web_dir / "css").is_dir():
+        app.mount("/css", StaticFiles(directory=str(web_dir / "css")), name="css")
+        app.mount("/web/css", StaticFiles(directory=str(web_dir / "css")), name="web_css")
+    if (web_dir / "js").is_dir():
+        app.mount("/js", StaticFiles(directory=str(web_dir / "js")), name="js")
+        app.mount("/web/js", StaticFiles(directory=str(web_dir / "js")), name="web_js")
+    if web_dir.is_dir():
+        app.mount("/web", StaticFiles(directory=str(web_dir), html=True), name="web_alias")
+        app.mount("/", StaticFiles(directory=str(web_dir), html=True), name="web")
     else:
-        logger.warning(f"Static web directory not found at {WEB_DIR}")
+        logger.warning(f"Static web directory not found at {web_dir}")
 
     return app
 
