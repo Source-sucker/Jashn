@@ -48,7 +48,8 @@ def create_app() -> FastAPI:
         description="GenAI-powered celebration planner for The Family Organizer. AI proposes, code disposes.",
         version="1.0.0",
         docs_url="/docs",
-        redoc_url=None
+        redoc_url=None,
+        redirect_slashes=False
     )
 
     # Middleware Stack (order matters: outer executes first)
@@ -59,7 +60,7 @@ def create_app() -> FastAPI:
         CORSMiddleware,
         allow_origins=settings.allowed_origins,
         allow_credentials=True,
-        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_methods=["*"],
         allow_headers=["*"],
     )
 
@@ -81,17 +82,17 @@ def create_app() -> FastAPI:
     # Frontend Root & Alias Routes
     web_dir = resolve_web_dir()
 
-    @app.get("/", include_in_schema=False)
-    @app.get("/index.html", include_in_schema=False)
-    @app.get("/web", include_in_schema=False)
-    @app.get("/web/index.html", include_in_schema=False)
+    @app.api_route("/", methods=["GET", "POST", "HEAD", "OPTIONS"], include_in_schema=False)
+    @app.api_route("/index.html", methods=["GET", "POST", "HEAD", "OPTIONS"], include_in_schema=False)
+    @app.api_route("/web", methods=["GET", "POST", "HEAD", "OPTIONS"], include_in_schema=False)
+    @app.api_route("/web/index.html", methods=["GET", "POST", "HEAD", "OPTIONS"], include_in_schema=False)
     async def serve_index():
         index_file = web_dir / "index.html"
         if index_file.is_file():
             return FileResponse(str(index_file))
         return JSONResponse(status_code=404, content={"detail": f"index.html not found in {web_dir}"})
 
-    @app.get("/favicon.ico", include_in_schema=False)
+    @app.api_route("/favicon.ico", methods=["GET", "HEAD", "OPTIONS"], include_in_schema=False)
     async def serve_favicon():
         fav = web_dir / "favicon.ico"
         if fav.is_file():

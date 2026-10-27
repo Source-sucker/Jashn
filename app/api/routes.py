@@ -40,6 +40,7 @@ def _format_prompt(template: str, params: dict[str, Any]) -> str:
 
 
 @router.get("/health")
+@router.get("/health/", include_in_schema=False)
 async def health_check() -> dict[str, Any]:
     """Health status and configuration info."""
     return {
@@ -53,6 +54,7 @@ async def health_check() -> dict[str, Any]:
 
 
 @router.post("/intake", response_model=IntakeResponse)
+@router.post("/intake/", response_model=IntakeResponse, include_in_schema=False)
 async def intake_endpoint(request: IntakeRequest) -> IntakeResponse:
     """Extracts structured EventBrief or returns up to 3 clarifying questions."""
     try:
@@ -66,6 +68,7 @@ async def intake_endpoint(request: IntakeRequest) -> IntakeResponse:
 
 
 @router.post("/plan", response_model=PlanResponse)
+@router.post("/plan/", response_model=PlanResponse, include_in_schema=False)
 async def plan_endpoint(brief: EventBrief, enrich: bool = True) -> PlanResponse:
     """Generates complete budget, timeline, vendor checklist, and personalized ideas."""
     try:
@@ -79,6 +82,7 @@ async def plan_endpoint(brief: EventBrief, enrich: bool = True) -> PlanResponse:
 
 
 @router.post("/plan/enrich", response_model=IdeasReport)
+@router.post("/plan/enrich/", response_model=IdeasReport, include_in_schema=False)
 async def plan_enrich_endpoint(request: PlanEnrichRequest) -> IdeasReport:
     """Asynchronously generates personalized AI themes & vendor questions for progressive UI."""
     try:
@@ -97,6 +101,7 @@ async def plan_enrich_endpoint(request: PlanEnrichRequest) -> IdeasReport:
 
 
 @router.post("/replan", response_model=ReplanResponse)
+@router.post("/replan/", response_model=ReplanResponse, include_in_schema=False)
 async def replan_endpoint(request: ReplanRequest) -> ReplanResponse:
     """
     Recomputes plan while preserving completed tasks and user-locked category estimates.
@@ -121,6 +126,7 @@ async def replan_endpoint(request: ReplanRequest) -> ReplanResponse:
 
 
 @router.post("/ideas/refine", response_model=IdeasReport)
+@router.post("/ideas/refine/", response_model=IdeasReport, include_in_schema=False)
 async def refine_ideas_endpoint(request: RefineIdeasRequest) -> IdeasReport:
     """Refines celebration theme ideas based on user follow-up prompt without restarting plan."""
     if not request.refinement_prompt.strip():
@@ -192,3 +198,23 @@ async def refine_ideas_endpoint(request: RefineIdeasRequest) -> IdeasReport:
         themes=updated_themes,
         cultural_alignment_note=f"Themes adjusted locally to accommodate: '{request.refinement_prompt}'."
     )
+
+
+@router.get("/intake", include_in_schema=False)
+@router.get("/intake/", include_in_schema=False)
+@router.get("/plan", include_in_schema=False)
+@router.get("/plan/", include_in_schema=False)
+@router.get("/plan/enrich", include_in_schema=False)
+@router.get("/plan/enrich/", include_in_schema=False)
+@router.get("/replan", include_in_schema=False)
+@router.get("/replan/", include_in_schema=False)
+@router.get("/ideas/refine", include_in_schema=False)
+@router.get("/ideas/refine/", include_in_schema=False)
+async def api_endpoints_info() -> dict[str, str]:
+    """Provides friendly guidance for browser visits to API endpoints."""
+    return {
+        "status": "ok",
+        "message": "This Jashn API endpoint accepts POST requests with a JSON payload.",
+        "ui": "/",
+        "docs": "/docs"
+    }

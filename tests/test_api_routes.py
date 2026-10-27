@@ -302,3 +302,46 @@ def test_root_and_static_routes(client):
     res_css = client.get("/css/styles.css")
     assert res_css.status_code == 200
 
+    # Verify root accepts POST, HEAD, OPTIONS without 405 Method Not Allowed
+    assert client.post("/").status_code == 200
+    assert client.head("/").status_code == 200
+    assert client.options("/").status_code == 200
+
+
+def test_api_trailing_slash_and_get_fallbacks(client, sample_brief):
+    """Verify API endpoints support trailing slashes and provide GET fallbacks without 405."""
+    # Trailing slash POST
+    payload = sample_brief.model_dump()
+    res = client.post("/api/plan/?enrich=false", json=payload)
+    assert res.status_code == 200
+
+    res_intake = client.post("/api/intake/", json=payload)
+    assert res_intake.status_code == 200
+
+    # Health check trailing slash
+    res_health = client.get("/api/health/")
+    assert res_health.status_code == 200
+    assert res_health.json()["status"] == "ok"
+
+    # GET fallbacks on mutation routes return helpful info instead of 405
+    res_get_plan = client.get("/api/plan")
+    assert res_get_plan.status_code == 200
+    assert res_get_plan.json()["status"] == "ok"
+
+    res_get_intake = client.get("/api/intake/")
+    assert res_get_intake.status_code == 200
+    assert res_get_intake.json()["status"] == "ok"
+
+    res_get_enrich = client.get("/api/plan/enrich")
+    assert res_get_enrich.status_code == 200
+    assert res_get_enrich.json()["status"] == "ok"
+
+    res_get_replan = client.get("/api/replan/")
+    assert res_get_replan.status_code == 200
+    assert res_get_replan.json()["status"] == "ok"
+
+    res_get_refine = client.get("/api/ideas/refine")
+    assert res_get_refine.status_code == 200
+    assert res_get_refine.json()["status"] == "ok"
+
+
