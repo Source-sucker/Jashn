@@ -9,6 +9,7 @@ from app.config import settings
 # In-memory IP rate limiter: {ip: [timestamp, timestamp, ...]}
 _IP_REQUEST_LOG: dict[str, list[float]] = {}
 MAX_TRACKED_IPS = 10000
+EVICTION_THRESHOLD_IPS = 500
 MAX_REQUEST_BODY_BYTES = 1024 * 1024  # 1 MB
 
 
@@ -69,7 +70,7 @@ def check_rate_limit(client_ip: str, now: float | None = None) -> bool:
     limit = settings.rate_limit_per_min
 
     # Periodic housekeeping if tracking many IPs
-    if len(_IP_REQUEST_LOG) >= 500:
+    if len(_IP_REQUEST_LOG) >= EVICTION_THRESHOLD_IPS:
         evict_stale_ips(current_time)
 
     timestamps = _IP_REQUEST_LOG.get(client_ip, [])

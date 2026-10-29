@@ -5,6 +5,22 @@ from app.services.budget import calculate_budget
 from app.services.timeline import calculate_timeline
 from app.services.vendors import build_vendor_checklist
 
+# ---------------------------------------------------------------------------
+# Replan trade-off constants — adjust here without touching business logic
+# ---------------------------------------------------------------------------
+#: Minimum guest count before "trim guest list" trade-off is offered.
+MIN_GUESTS_FOR_TRIM: int = 20
+#: Fraction of guests suggested for trimming (e.g., 0.15 = 15%).
+GUEST_TRIM_RATE: float = 0.15
+#: Minimum calculated saving (INR) for a trade-off option to be shown.
+MIN_TRADEOFF_SAVING_INR: int = 1000
+#: Fraction of decor allocation to save in the decor streamlining trade-off.
+DECOR_REDUCTION_RATE: float = 0.35
+#: Fraction of entertainment allocation to save in the decor trade-off.
+ENT_REDUCTION_RATE: float = 0.30
+#: Fraction of catering allocation to save in the catering-tier trade-off.
+CATERING_REDUCTION_RATE: float = 0.15
+
 
 def compute_replan(
     current_plan: PlanResponse,
@@ -92,8 +108,8 @@ def compute_replan(
     tradeoff_options: list[TradeoffOption] = []
 
     # Trade-off 1: Guest List Optimization
-    if new_guests > 20:
-        trim_candidates = max(5, int(math.ceil(new_guests * 0.15)))
+    if new_guests > MIN_GUESTS_FOR_TRIM:
+        trim_candidates = max(5, int(math.ceil(new_guests * GUEST_TRIM_RATE)))
         trim_pct = round((trim_candidates / new_guests) * 100)
         guest_saving = trim_candidates * (new_budget // new_guests)
         guest_saving_rounded = int(round(guest_saving / 100.0) * 100)
@@ -118,8 +134,8 @@ def compute_replan(
     # Trade-off 2: Decor & Entertainment Streamlining
     decor_alloc = next((c.allocated_amount for c in new_budget_report.categories if "decor" in c.category_id), 0)
     ent_alloc = next((c.allocated_amount for c in new_budget_report.categories if "entertainment" in c.category_id), 0)
-    decor_saving = int(round((decor_alloc * 0.35 + ent_alloc * 0.30) / 100.0) * 100)
-    if decor_saving > 1000:
+    decor_saving = int(round((decor_alloc * DECOR_REDUCTION_RATE + ent_alloc * ENT_REDUCTION_RATE) / 100.0) * 100)
+    if decor_saving > MIN_TRADEOFF_SAVING_INR:
         tradeoff_options.append(
             TradeoffOption(
                 id="tradeoff_simplify_decor",
@@ -139,8 +155,8 @@ def compute_replan(
 
     # Trade-off 3: Catering Tier & Meal Timing Adjustment
     catering_alloc = next((c.allocated_amount for c in new_budget_report.categories if "catering" in c.category_id), 0)
-    catering_saving = int(round((catering_alloc * 0.15) / 100.0) * 100)
-    if catering_saving > 1000:
+    catering_saving = int(round((catering_alloc * CATERING_REDUCTION_RATE) / 100.0) * 100)
+    if catering_saving > MIN_TRADEOFF_SAVING_INR:
         tradeoff_options.append(
             TradeoffOption(
                 id="tradeoff_catering_tier",

@@ -23,6 +23,18 @@ from app.services.vendors import build_vendor_checklist
 logger = logging.getLogger("jashn.planner")
 PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
 
+# ---------------------------------------------------------------------------
+# Planner constants
+# ---------------------------------------------------------------------------
+#: Minimum budget amount (in INR) recognized from raw natural language input.
+MIN_RECOGNIZABLE_BUDGET: int = 5000
+#: Maximum clarifying questions to return when intake information is incomplete.
+MAX_CLARIFYING_QUESTIONS: int = 3
+#: Maximum sentences in cultural alignment notes.
+MAX_CULTURAL_NOTE_SENTENCES: int = 2
+#: Minimum themes returned for AI generation to be marked complete.
+MIN_ENRICHMENT_THEMES: int = 3
+
 
 def _read_prompt(filename: str) -> str:
     path = PROMPTS_DIR / filename
@@ -89,21 +101,21 @@ def _extract_intake_facts(desc: str) -> dict[str, Any]:
     elif budget_prefix:
         try:
             clean = int(budget_prefix.group(1).replace(",", ""))
-            if clean >= 5000:
+            if clean >= MIN_RECOGNIZABLE_BUDGET:
                 facts["total_budget"] = clean
         except ValueError:
             pass
     elif budget_suffix:
         try:
             clean = int(budget_suffix.group(1).replace(",", ""))
-            if clean >= 5000:
+            if clean >= MIN_RECOGNIZABLE_BUDGET:
                 facts["total_budget"] = clean
         except ValueError:
             pass
     elif direct_curr:
         try:
             clean = int(direct_curr.group(1).replace(",", ""))
-            if clean >= 5000:
+            if clean >= MIN_RECOGNIZABLE_BUDGET:
                 facts["total_budget"] = clean
         except ValueError:
             pass
@@ -212,14 +224,14 @@ async def process_intake(request: IntakeRequest) -> IntakeResponse:
                 brief_data = ai_data.get("brief")
                 raw_questions = ai_data.get("clarifying_questions", [])
 
-                if is_comp and brief_data and isinstance(brief_data, dict):
-                    # Ensure critical fields have valid values
-                    if (
-                        brief_data.get("event_type")
-                        and brief_data.get("event_date")
-                        and brief_data.get("guest_count")
-                        and brief_data.get("total_budget")
-                    ):
+                if (
+                    is_comp
+                    and isinstance(brief_data, dict)
+                    and brief_data.get("event_type")
+                    and brief_data.get("event_date")
+                    and brief_data.get("guest_count")
+                    and brief_data.get("total_budget")
+                ):
                         brief = EventBrief(
                             event_type=str(brief_data.get("event_type")),
                             event_date=str(brief_data.get("event_date")),
@@ -321,7 +333,7 @@ async def process_intake(request: IntakeRequest) -> IntakeResponse:
                 options=["50 guests", "100 guests", "250 guests", "500 guests"]
             )
         )
-    if not req_budget and len(questions) < 3:
+    if not req_budget and len(questions) < MAX_CLARIFYING_QUESTIONS:
         questions.append(
             ClarifyingQuestion(
                 field="total_budget",
@@ -333,7 +345,7 @@ async def process_intake(request: IntakeRequest) -> IntakeResponse:
     return IntakeResponse(
         is_complete=False,
         brief=None,
-        clarifying_questions=questions[:3],
+        clarifying_questions=questions[:MAX_CLARIFYING_QUESTIONS],
         extracted_summary="Please provide the missing details to generate your tailored budget and timeline."
     )
 
@@ -395,12 +407,12 @@ async def enrich_plan_ideas(
                 raw_note = str(enrichment_data.get("cultural_alignment_note", ""))
                 import re
                 note_sentences = re.split(r"(?<=[.!?])\s+", raw_note.strip())
-                cultural_note = " ".join(note_sentences[:2]) if len(note_sentences) > 2 else raw_note.strip()
+                cultural_note = " ".join(note_sentences[:MAX_CULTURAL_NOTE_SENTENCES]) if len(note_sentences) > MAX_CULTURAL_NOTE_SENTENCES else raw_note.strip()
                 v_qs = enrichment_data.get("vendor_questions", {})
                 if isinstance(v_qs, dict):
                     vendor_custom_questions = v_qs
 
-                if len(ai_themes) >= 3:
+                if len(ai_themes) >= MIN_ENRICHMENT_THEMES:
                     is_ai_generated = True
         except Exception as e:
             logger.warning(f"Plan enrichment error, falling back to rule-based ideas: {e}")

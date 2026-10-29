@@ -6,6 +6,22 @@ from app.models.schemas import BudgetCategoryAllocation, BudgetReport
 
 TEMPLATES_PATH = Path(__file__).parent.parent / "data" / "event_templates.json"
 
+# ---------------------------------------------------------------------------
+# Budget calculation constants — change these, not the function body
+# ---------------------------------------------------------------------------
+#: Extra weight given to the user's top-priority category.
+PRIORITY_BOOST_FACTOR: float = 0.20
+#: Default minimum weight floor for any category (fraction of allocable budget).
+DEFAULT_FLOOR_PCT: float = 0.02
+#: Minimum contingency reserve in rupees regardless of total budget.
+MIN_CONTINGENCY_AMOUNT: int = 500
+#: All monetary values are rounded to the nearest ROUNDING_UNIT rupees.
+ROUNDING_UNIT: int = 100
+#: Per-guest spend multiplier above which the plan is "comfortable".
+FEASIBILITY_COMFORTABLE_MULTIPLIER: float = 1.3
+#: Per-guest spend multiplier above which the plan is "tight" (below = "unrealistic").
+FEASIBILITY_TIGHT_MULTIPLIER: float = 0.8
+
 
 def load_event_templates() -> dict:
     with open(TEMPLATES_PATH, encoding="utf-8") as f:
@@ -73,22 +89,21 @@ def calculate_budget(
         for p in priorities:
             p_clean = p.lower().strip()
             for cat_key in raw_weights:
-                if p_clean in cat_key or cat_key in p_clean:
-                    if cat_key not in matched_priorities:
-                        matched_priorities.append(cat_key)
-                        break
+                if (p_clean in cat_key or cat_key in p_clean) and cat_key not in matched_priorities:
+                    matched_priorities.append(cat_key)
+                    break
 
         if matched_priorities:
             top_p = matched_priorities[0]
             if top_p in adjusted_weights:
-                boost = adjusted_weights[top_p] * 0.20
+                boost = adjusted_weights[top_p] * PRIORITY_BOOST_FACTOR
                 adjusted_weights[top_p] += boost
                 # Distribute reduction across non-priority categories while respecting floors
                 other_keys = [k for k in adjusted_weights if k != top_p]
                 if other_keys:
                     reduction_per_cat = boost / len(other_keys)
                     for k in other_keys:
-                        min_fl = floors.get(k, 0.03)
+                        min_fl = floors.get(k, DEFAULT_FLOOR_PCT + 0.01)
                         adjusted_weights[k] = max(min_fl, adjusted_weights[k] - reduction_per_cat)
 
     # Normalize category weights to sum to 1.0
@@ -99,7 +114,7 @@ def calculate_budget(
     # Calculate contingency amount in units of 100
     # Reserve is rounded to nearest 100
     raw_contingency = total_budget * contingency_pct
-    contingency_amount = max(500, int(round(raw_contingency / 100.0) * 100))
+    contingency_amount = max(MIN_CONTINGENCY_AMOUNT, int(round(raw_contingency / ROUNDING_UNIT) * ROUNDING_UNIT))
     allocable_budget = total_budget - contingency_amount
 
     # Handle locked categories (e.g. during replanning)
@@ -126,8 +141,8 @@ def calculate_budget(
             unlocked_weight_sum = 1.0
 
         # Number of 100-rupee units to distribute
-        total_units = remaining_for_unlocked // 100
-        odd_rupees = remaining_for_unlocked % 100
+        total_units = remaining_for_unlocked // ROUNDING_UNIT
+        odd_rupees = remaining_for_unlocked % ROUNDING_UNIT
 
         target_units: dict[str, float] = {}
         base_units: dict[str, int] = {}
@@ -139,7 +154,7 @@ def calculate_budget(
             target_units[k] = tu
             bu = int(math.floor(tu))
             # Check floor in units
-            min_floor_units = int(math.ceil((floors.get(k, 0.02) * allocable_budget) / 100.0))
+            min_floor_units = int(math.ceil((floors.get(k, DEFAULT_FLOOR_PCT) * allocable_budget) / ROUNDING_UNIT))
             if bu < min_floor_units and total_units >= min_floor_units * len(unlocked_keys):
                 bu = min_floor_units
             base_units[k] = bu
@@ -166,7 +181,7 @@ def calculate_budget(
                 base_units[k] += 1
 
         for k in unlocked_keys:
-            category_allocations[k] = base_units[k] * 100
+            category_allocations[k] = base_units[k] * ROUNDING_UNIT
 
         # Any odd single rupees (< 100) are added to contingency so total is EXACT
         contingency_amount += odd_rupees
@@ -211,13 +226,13 @@ def calculate_budget(
     benchmarks = template.get("benchmark_per_guest", {"tier1": 1500, "tier2": 1000, "tier3": 750})
     bench_val = benchmarks.get("tier2", 1000)
 
-    if per_guest_spend >= bench_val * 1.3:
+    if per_guest_spend >= bench_val * FEASIBILITY_COMFORTABLE_MULTIPLIER:
         feasibility_status = "comfortable"
         feasibility_reason = (
             f"At ₹{per_guest_spend:,}/guest, your budget is comfortable. You have ample room for full hospitality, "
             f"premium catering live counters, and high-quality photography."
         )
-    elif per_guest_spend >= bench_val * 0.8:
+    elif per_guest_spend >= bench_val * FEASIBILITY_TIGHT_MULTIPLIER:
         feasibility_status = "tight"
         feasibility_reason = (
             f"At ₹{per_guest_spend:,}/guest, your budget is tight but feasible. Focus on package deals for venue and decor, "

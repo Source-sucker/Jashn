@@ -25,6 +25,8 @@ from app.services.replan import compute_replan
 logger = logging.getLogger("jashn.routes")
 router = APIRouter(prefix="/api", tags=["Jashn Core API"])
 PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
+MIN_REFINED_THEMES_THRESHOLD: int = 2
+MAX_CULTURAL_NOTE_SENTENCES: int = 2
 
 
 def _read_prompt(filename: str) -> str:
@@ -171,11 +173,11 @@ async def refine_ideas_endpoint(request: RefineIdeasRequest) -> IdeasReport:
                                 estimated_tier=t.get("estimated_tier", "Balanced")
                             )
                         )
-                if len(refined_themes) >= 2:
+                if len(refined_themes) >= MIN_REFINED_THEMES_THRESHOLD:
                     raw_note = str(res.get("cultural_alignment_note", f"Refined with request: '{request.refinement_prompt}'."))
                     import re
                     note_sentences = re.split(r"(?<=[.!?])\s+", raw_note.strip())
-                    capped_note = " ".join(note_sentences[:2]) if len(note_sentences) > 2 else raw_note.strip()
+                    capped_note = " ".join(note_sentences[:MAX_CULTURAL_NOTE_SENTENCES]) if len(note_sentences) > MAX_CULTURAL_NOTE_SENTENCES else raw_note.strip()
                     return IdeasReport(
                         themes=refined_themes,
                         cultural_alignment_note=capped_note
