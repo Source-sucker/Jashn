@@ -24,13 +24,9 @@ def resolve_web_dir() -> Path:
     Handles standard local directory structures as well as Vercel/Lambda serverless bundles.
     """
     candidates = [
-        Path(os.getcwd()) / "public",
         Path(os.getcwd()) / "web",
-        Path(__file__).resolve().parent.parent / "public",
         Path(__file__).resolve().parent.parent / "web",
-        Path(__file__).resolve().parent / "public",
         Path(__file__).resolve().parent / "web",
-        Path("/var/task/public"),
         Path("/var/task/web"),
     ]
     for candidate in candidates:

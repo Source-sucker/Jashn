@@ -1,1 +1,0 @@
-"""Vercel Serverless Function package."""
