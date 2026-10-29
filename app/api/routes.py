@@ -64,7 +64,7 @@ async def intake_endpoint(request: IntakeRequest) -> IntakeResponse:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Could not process intake details. Please check your inputs."
-        )
+        ) from e
 
 
 @router.post("/plan", response_model=PlanResponse)
@@ -78,7 +78,7 @@ async def plan_endpoint(brief: EventBrief, enrich: bool = True) -> PlanResponse:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to generate celebration plan. Please verify event parameters."
-        )
+        ) from e
 
 
 @router.post("/plan/enrich", response_model=IdeasReport)
@@ -97,7 +97,7 @@ async def plan_enrich_endpoint(request: PlanEnrichRequest) -> IdeasReport:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to enrich celebration themes."
-        )
+        ) from e
 
 
 @router.post("/replan", response_model=ReplanResponse)
@@ -122,7 +122,7 @@ async def replan_endpoint(request: ReplanRequest) -> ReplanResponse:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Could not replan with provided updates. Please verify parameters."
-        )
+        ) from e
 
 
 @router.post("/ideas/refine", response_model=IdeasReport)
