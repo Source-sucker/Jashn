@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -10,10 +10,10 @@ class EventBrief(BaseModel):
     guest_count: int = Field(ge=1, le=50000, description="Estimated total guests")
     total_budget: int = Field(ge=5000, le=1000000000, description="Total budget in INR")
     priorities: list[str] = Field(default_factory=list, description="Ordered priority categories")
-    venue_preference: Optional[str] = Field(default="", description="e.g. Banquet Hall, Open Lawn, Home")
-    dietary_cultural_notes: Optional[str] = Field(default="", description="Cultural, vegetarian, Jain, regional specifics")
-    vibe: Optional[str] = Field(default="", description="e.g. Royal Traditional, Modern Minimalist, Festive Community")
-    user_description: Optional[str] = Field(default="", description="Original user text input")
+    venue_preference: str | None = Field(default="", description="e.g. Banquet Hall, Open Lawn, Home")
+    dietary_cultural_notes: str | None = Field(default="", description="Cultural, vegetarian, Jain, regional specifics")
+    vibe: str | None = Field(default="", description="e.g. Royal Traditional, Modern Minimalist, Festive Community")
+    user_description: str | None = Field(default="", description="Original user text input")
 
     @field_validator("event_type")
     @classmethod
@@ -36,27 +36,27 @@ class EventBrief(BaseModel):
 class ClarifyingQuestion(BaseModel):
     field: str
     question: str
-    options: Optional[list[str]] = None
+    options: list[str] | None = None
 
 
 class IntakeRequest(BaseModel):
-    description: Optional[str] = Field(default="", max_length=2000)
-    event_type: Optional[str] = Field(default=None, max_length=100)
-    event_date: Optional[str] = Field(default=None, max_length=20)
-    city: Optional[str] = Field(default=None, max_length=100)
-    guest_count: Optional[int] = Field(default=None, ge=1, le=50000)
-    total_budget: Optional[int] = Field(default=None, ge=5000, le=1000000000)
-    priorities: Optional[list[str]] = Field(default_factory=list)
-    venue_preference: Optional[str] = Field(default=None, max_length=200)
-    dietary_cultural_notes: Optional[str] = Field(default=None, max_length=500)
-    vibe: Optional[str] = Field(default=None, max_length=200)
+    description: str | None = Field(default="", max_length=2000)
+    event_type: str | None = Field(default=None, max_length=100)
+    event_date: str | None = Field(default=None, max_length=20)
+    city: str | None = Field(default=None, max_length=100)
+    guest_count: int | None = Field(default=None, ge=1, le=50000)
+    total_budget: int | None = Field(default=None, ge=5000, le=1000000000)
+    priorities: list[str] | None = Field(default_factory=list)
+    venue_preference: str | None = Field(default=None, max_length=200)
+    dietary_cultural_notes: str | None = Field(default=None, max_length=500)
+    vibe: str | None = Field(default=None, max_length=200)
 
 
 class IntakeResponse(BaseModel):
     is_complete: bool
-    brief: Optional[EventBrief] = None
+    brief: EventBrief | None = None
     clarifying_questions: list[ClarifyingQuestion] = Field(default_factory=list)
-    extracted_summary: Optional[str] = None
+    extracted_summary: str | None = None
 
 
 class BudgetCategoryAllocation(BaseModel):
@@ -67,7 +67,7 @@ class BudgetCategoryAllocation(BaseModel):
     floor_amount: int
     is_locked: bool = False
     actual_spent: int = 0
-    notes: Optional[str] = None
+    notes: str | None = None
 
 
 class BudgetReport(BaseModel):
@@ -93,7 +93,7 @@ class TimelineTask(BaseModel):
     is_rush: bool = False
     is_urgent: bool = False
     is_blocked: bool = False
-    notes: Optional[str] = None
+    notes: str | None = None
 
 
 class TimelineReport(BaseModel):
@@ -108,10 +108,10 @@ class UserVendor(BaseModel):
     id: str
     category_id: str = "catering"
     name: str
-    contact: Optional[str] = ""
-    quote_amount: Optional[int] = None
+    contact: str | None = ""
+    quote_amount: int | None = None
     status: str = "pending"  # "pending" | "shortlisted" | "confirmed"
-    notes: Optional[str] = ""
+    notes: str | None = ""
 
 
 class VendorCategoryItem(BaseModel):
@@ -154,12 +154,12 @@ class PlanResponse(BaseModel):
 
 class ReplanRequest(BaseModel):
     current_plan: PlanResponse
-    updated_budget: Optional[int] = Field(default=None, ge=5000, le=1000000000)
-    updated_guest_count: Optional[int] = Field(default=None, ge=1, le=50000)
-    updated_date: Optional[str] = None
-    updated_priorities: Optional[list[str]] = None
-    locked_categories: Optional[dict[str, int]] = Field(default_factory=dict)
-    completed_task_ids: Optional[list[str]] = Field(default_factory=list)
+    updated_budget: int | None = Field(default=None, ge=5000, le=1000000000)
+    updated_guest_count: int | None = Field(default=None, ge=1, le=50000)
+    updated_date: str | None = None
+    updated_priorities: list[str] | None = None
+    locked_categories: dict[str, int] | None = Field(default_factory=dict)
+    completed_task_ids: list[str] | None = Field(default_factory=list)
 
 
 class TradeoffOption(BaseModel):
@@ -188,6 +188,6 @@ class RefineIdeasRequest(BaseModel):
 
 class PlanEnrichRequest(BaseModel):
     brief: EventBrief
-    categories_summary: Optional[str] = None
-    days_remaining: Optional[int] = None
+    categories_summary: str | None = None
+    days_remaining: int | None = None
 

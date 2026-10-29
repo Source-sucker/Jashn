@@ -1,5 +1,5 @@
 import time
-from typing import Callable, Optional
+from collections.abc import Callable
 
 from fastapi import HTTPException, Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -31,7 +31,7 @@ def resolve_client_ip(request: Request, trusted_proxy_count: int = 0) -> str:
     return request.client.host if request.client else "127.0.0.1"
 
 
-def evict_stale_ips(now: Optional[float] = None) -> int:
+def evict_stale_ips(now: float | None = None) -> int:
     """
     Evicts stale IP entries older than 60 seconds from memory to prevent unbounded growth.
     Returns the count of evicted IP keys.
@@ -59,7 +59,7 @@ def evict_stale_ips(now: Optional[float] = None) -> int:
     return len(stale_ips)
 
 
-def check_rate_limit(client_ip: str, now: Optional[float] = None) -> bool:
+def check_rate_limit(client_ip: str, now: float | None = None) -> bool:
     """
     Sliding window rate limiter: allows up to settings.rate_limit_per_min requests per minute.
     Evicts stale entries to ensure memory remains bounded.

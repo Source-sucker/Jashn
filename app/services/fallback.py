@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from app.models.schemas import (
     EventBrief,
@@ -160,7 +160,7 @@ def build_fallback_plan(brief: EventBrief) -> PlanResponse:
     )
 
     plan_id = f"plan_{uuid.uuid4().hex[:10]}"
-    created_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    created_at = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     return PlanResponse(
         plan_id=plan_id,

@@ -1,5 +1,4 @@
 import math
-from typing import Optional
 
 from app.models.schemas import PlanResponse, ReplanResponse, TradeoffOption
 from app.services.budget import calculate_budget
@@ -9,12 +8,12 @@ from app.services.vendors import build_vendor_checklist
 
 def compute_replan(
     current_plan: PlanResponse,
-    updated_budget: Optional[int] = None,
-    updated_guest_count: Optional[int] = None,
-    updated_date: Optional[str] = None,
-    updated_priorities: Optional[list[str]] = None,
-    locked_categories: Optional[dict[str, int]] = None,
-    completed_task_ids: Optional[list[str]] = None
+    updated_budget: int | None = None,
+    updated_guest_count: int | None = None,
+    updated_date: str | None = None,
+    updated_priorities: list[str] | None = None,
+    locked_categories: dict[str, int] | None = None,
+    completed_task_ids: list[str] | None = None
 ) -> ReplanResponse:
     """
     Deterministic replan engine:

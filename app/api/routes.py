@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -29,7 +29,7 @@ PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
 
 def _read_prompt(filename: str) -> str:
     path = PROMPTS_DIR / filename
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         return f.read()
 
 
@@ -49,7 +49,7 @@ async def health_check() -> dict[str, Any]:
         "version": "1.0.0",
         "model": settings.gemini_model,
         "ai_available": ai_client.is_available(),
-        "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        "timestamp": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     }
 
 

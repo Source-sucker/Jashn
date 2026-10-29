@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 _env_path = Path(__file__).resolve().parent.parent / ".env"
 if _env_path.is_file():
     try:
-        with open(_env_path, "r", encoding="utf-8") as _f:
+        with open(_env_path, encoding="utf-8") as _f:
             for _line in _f:
                 _line = _line.strip()
                 if _line and not _line.startswith("#") and "=" in _line:

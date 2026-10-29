@@ -1,9 +1,9 @@
 import logging
 import re
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from app.models.schemas import (
     ClarifyingQuestion,
@@ -26,7 +26,7 @@ PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
 
 def _read_prompt(filename: str) -> str:
     path = PROMPTS_DIR / filename
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         return f.read()
 
 
@@ -340,8 +340,8 @@ async def process_intake(request: IntakeRequest) -> IntakeResponse:
 
 async def enrich_plan_ideas(
     brief: EventBrief,
-    categories_summary: Optional[str] = None,
-    days_remaining: Optional[int] = None
+    categories_summary: str | None = None,
+    days_remaining: int | None = None
 ) -> tuple[IdeasReport, dict[str, list[str]], bool]:
     """
     Enriches plan ideas via Gemini. Returns (IdeasReport, vendor_questions, is_ai_generated).
@@ -471,7 +471,7 @@ async def generate_plan(brief: EventBrief, enrich: bool = True) -> PlanResponse:
     )
 
     plan_id = f"plan_{uuid.uuid4().hex[:10]}"
-    created_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    created_at = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     return PlanResponse(
         plan_id=plan_id,

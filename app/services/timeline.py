@@ -1,7 +1,6 @@
 import json
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from typing import Optional
 
 from app.models.schemas import TimelineReport, TimelineTask
 
@@ -9,16 +8,16 @@ TEMPLATES_PATH = Path(__file__).parent.parent / "data" / "event_templates.json"
 
 
 def load_event_templates() -> dict:
-    with open(TEMPLATES_PATH, "r", encoding="utf-8") as f:
+    with open(TEMPLATES_PATH, encoding="utf-8") as f:
         return json.load(f)
 
 
 def calculate_timeline(
     event_date_str: str,
     event_type: str = "wedding",
-    today: Optional[date] = None,
-    completed_task_ids: Optional[list[str]] = None,
-    custom_tasks: Optional[list[dict]] = None
+    today: date | None = None,
+    completed_task_ids: list[str] | None = None,
+    custom_tasks: list[dict] | None = None
 ) -> TimelineReport:
     """
     Deterministic backward-scheduling timeline engine:

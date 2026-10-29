@@ -1,7 +1,6 @@
 import json
 import math
 from pathlib import Path
-from typing import Optional
 
 from app.models.schemas import BudgetCategoryAllocation, BudgetReport
 
@@ -9,7 +8,7 @@ TEMPLATES_PATH = Path(__file__).parent.parent / "data" / "event_templates.json"
 
 
 def load_event_templates() -> dict:
-    with open(TEMPLATES_PATH, "r", encoding="utf-8") as f:
+    with open(TEMPLATES_PATH, encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -43,9 +42,9 @@ def calculate_budget(
     total_budget: int,
     guest_count: int,
     event_type: str = "wedding",
-    priorities: Optional[list[str]] = None,
+    priorities: list[str] | None = None,
     city: str = "Tier 2 City",
-    locked_categories: Optional[dict[str, int]] = None
+    locked_categories: dict[str, int] | None = None
 ) -> BudgetReport:
     """
     Deterministic budget engine implementing:
@@ -73,7 +72,7 @@ def calculate_budget(
         matched_priorities = []
         for p in priorities:
             p_clean = p.lower().strip()
-            for cat_key in raw_weights.keys():
+            for cat_key in raw_weights:
                 if p_clean in cat_key or cat_key in p_clean:
                     if cat_key not in matched_priorities:
                         matched_priorities.append(cat_key)
@@ -85,7 +84,7 @@ def calculate_budget(
                 boost = adjusted_weights[top_p] * 0.20
                 adjusted_weights[top_p] += boost
                 # Distribute reduction across non-priority categories while respecting floors
-                other_keys = [k for k in adjusted_weights.keys() if k != top_p]
+                other_keys = [k for k in adjusted_weights if k != top_p]
                 if other_keys:
                     reduction_per_cat = boost / len(other_keys)
                     for k in other_keys:
@@ -107,7 +106,7 @@ def calculate_budget(
     locked_total = 0
     unlocked_keys = []
     unlocked_weight_sum = 0.0
-    for k in adjusted_weights.keys():
+    for k in adjusted_weights:
         if k in locked_categories:
             locked_total += locked_categories[k]
         else:

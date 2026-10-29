@@ -3,7 +3,7 @@ import hashlib
 import json
 import logging
 import re
-from typing import Any, Optional
+from typing import Any
 
 from google import genai
 from google.genai import types
@@ -32,7 +32,7 @@ class GeminiClient:
         self.model_name = settings.gemini_model or "gemini-flash-latest"
         self.fallback_models = settings.gemini_model_fallbacks
         self.timeout = settings.ai_timeout_seconds
-        self._client: Optional[genai.Client] = None
+        self._client: genai.Client | None = None
 
         if self.api_key:
             try:
@@ -47,10 +47,10 @@ class GeminiClient:
     async def generate_json(
         self,
         prompt: str,
-        schema_class: Optional[Any] = None,
+        schema_class: Any | None = None,
         task: str = "general",
-        timeout: Optional[float] = None
-    ) -> Optional[dict[str, Any]]:
+        timeout: float | None = None
+    ) -> dict[str, Any] | None:
         """
         Executes Gemini content generation expecting a JSON response.
         Enforces:
@@ -85,7 +85,7 @@ class GeminiClient:
                         _LRU_CACHE.pop(next(iter(_LRU_CACHE)))
                     _LRU_CACHE[cache_key] = result_json
                     return result_json
-            except asyncio.TimeoutError as e:
+            except TimeoutError as e:
                 logger.warning(f"Gemini API timed out after {effective_timeout}s (attempt {attempt + 1}): {e}")
                 last_error = e
             except Exception as e:
@@ -127,7 +127,7 @@ class GeminiClient:
         ]
         return any(ind in err_str for ind in indicators)
 
-    async def _call_gemini_api(self, prompt: str, task: str = "general") -> Optional[dict[str, Any]]:
+    async def _call_gemini_api(self, prompt: str, task: str = "general") -> dict[str, Any] | None:
         """
         Runs synchronous SDK call inside default thread pool executor to remain async-friendly.
         Caps max_output_tokens per task and implements fallback model chain on model-not-found or overload.

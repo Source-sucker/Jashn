@@ -1,6 +1,5 @@
 import json
 from pathlib import Path
-from typing import Optional
 
 from app.models.schemas import BudgetReport, UserVendor, VendorCategoryItem
 
@@ -8,15 +7,15 @@ TEMPLATES_PATH = Path(__file__).parent.parent / "data" / "event_templates.json"
 
 
 def load_event_templates() -> dict:
-    with open(TEMPLATES_PATH, "r", encoding="utf-8") as f:
+    with open(TEMPLATES_PATH, encoding="utf-8") as f:
         return json.load(f)
 
 
 def build_vendor_checklist(
     event_type: str,
     budget_report: BudgetReport,
-    ai_personalized_questions: Optional[dict[str, list[str]]] = None,
-    existing_user_vendors: Optional[list[UserVendor]] = None
+    ai_personalized_questions: dict[str, list[str]] | None = None,
+    existing_user_vendors: list[UserVendor] | None = None
 ) -> list[VendorCategoryItem]:
     """
     Builds the vendor checklist per category.
