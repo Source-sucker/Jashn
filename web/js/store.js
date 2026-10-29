@@ -7,6 +7,11 @@
 const STORAGE_KEY = 'jashn_plan_v1';
 const SCHEMA_VERSION = 'v1';
 
+/**
+ * Validates that an object conforms to the Jashn plan v1 schema specification.
+ * @param {any} data - The raw object to validate.
+ * @returns {boolean} True if data matches the v1 plan schema, false otherwise.
+ */
 export function validatePlanSchema(data) {
   if (!data || typeof data !== 'object') return false;
   if (!data.plan_id || typeof data.plan_id !== 'string') return false;
@@ -19,6 +24,10 @@ export function validatePlanSchema(data) {
   return true;
 }
 
+/**
+ * Saves a celebration plan to localStorage and notifies active listeners.
+ * @param {object} plan - The complete celebration plan object.
+ */
 export function savePlan(plan) {
   if (!plan) return;
   plan.schema_version = SCHEMA_VERSION;
@@ -30,6 +39,10 @@ export function savePlan(plan) {
   }
 }
 
+/**
+ * Loads and validates the current celebration plan from localStorage.
+ * @returns {object|null} The parsed plan if valid, or null if empty/invalid.
+ */
 export function loadPlan() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -47,11 +60,18 @@ export function loadPlan() {
   }
 }
 
+/**
+ * Clears the active celebration plan from localStorage and notifies listeners.
+ */
 export function clearPlan() {
   localStorage.removeItem(STORAGE_KEY);
   dispatchStoreUpdate(null);
 }
 
+/**
+ * Serializes and triggers a client-side browser download of the plan as JSON.
+ * @param {object} plan - The celebration plan to export.
+ */
 export function exportPlanJSON(plan) {
   const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(plan, null, 2));
   const downloadAnchor = document.createElement('a');
@@ -63,6 +83,11 @@ export function exportPlanJSON(plan) {
   downloadAnchor.remove();
 }
 
+/**
+ * Parses and validates an imported plan JSON string, persisting it if valid.
+ * @param {string} jsonString - The raw JSON string from a user-uploaded file.
+ * @returns {{success: boolean, plan?: object, error?: string}} Import result object.
+ */
 export function importPlanJSON(jsonString) {
   try {
     const parsed = JSON.parse(jsonString);
@@ -77,6 +102,10 @@ export function importPlanJSON(jsonString) {
 }
 
 const listeners = [];
+/**
+ * Registers a callback invoked whenever the persisted plan is saved or cleared.
+ * @param {Function} callback - Listener receiving the updated plan (or null).
+ */
 export function onStoreChange(callback) {
   listeners.push(callback);
 }

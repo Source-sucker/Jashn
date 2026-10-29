@@ -2,6 +2,11 @@
  * Accessibility (a11y) and text formatting utilities for Jashn.
  */
 
+/**
+ * Announces a message to screen readers using the ARIA live region.
+ * @param {string} message - Text message to announce.
+ * @param {'polite'|'assertive'} [priority='polite'] - ARIA live priority level.
+ */
 export function announce(message, priority = 'polite') {
   const announcer = document.getElementById('aria-announcer');
   if (announcer) {
@@ -14,6 +19,11 @@ export function announce(message, priority = 'polite') {
   }
 }
 
+/**
+ * Formats a monetary integer into Indian rupee currency format (e.g. ₹1,50,000).
+ * @param {number|string|null} amount - Amount in INR.
+ * @returns {string} Formatted rupee string.
+ */
 export function formatINR(amount) {
   if (amount === null || amount === undefined || isNaN(amount)) return '₹0';
   const num = Math.round(Number(amount));
@@ -24,6 +34,11 @@ export function formatINR(amount) {
   }).format(num);
 }
 
+/**
+ * Converts large numbers into natural Indian numbering units (Crore, Lakh, Thousand).
+ * @param {number|null} num - Number to format.
+ * @returns {string} Short natural description (e.g. ≈ ₹1.5 Lakh).
+ */
 export function formatIndianWords(num) {
   if (!num || isNaN(num) || num <= 0) return '';
   const n = Math.round(num);
@@ -42,6 +57,11 @@ export function formatIndianWords(num) {
   return '';
 }
 
+/**
+ * Enforces keyboard focus trapping inside a modal dialog element.
+ * @param {HTMLDialogElement} dialog - The modal dialog element.
+ * @returns {Function} Cleanup function to detach event listener when closed.
+ */
 export function trapFocus(dialog) {
   const focusable = dialog.querySelectorAll(
     'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'

@@ -171,7 +171,23 @@ node --test tests/frontend_tests/*.mjs
 
 ---
 
-## 8. Security & Accessibility (WCAG 2.1 AA)
+## 8. Code Structure & Conventions
+
+- **Directory Layout:**
+  - `app/api/`: FastAPI route controllers (`routes.py`) with schema validation and explicit exception chaining (`raise HTTPException(...) from err`).
+  - `app/services/`: Deterministic calculation engines (`budget.py`, `timeline.py`, `vendors.py`, `replan.py`), AI client wrapper (`ai_client.py`), and planner orchestrator (`planner.py`).
+  - `app/models/`: Pydantic v2 data models (`schemas.py`) with comprehensive type hints and field constraints.
+  - `app/prompts/`: Versioned prompt templates for Gemini tasks (`intake_v1`, `plan_enrichment_v1`, `ideas_refine_v1`).
+  - `web/`: Canonical frontend web application (Vanilla HTML5, CSS custom properties, and modern modular ES6+ JavaScript in `web/js/`).
+  - `tests/`: Comprehensive test suite including pytest unit/integration tests with coverage floor, plus Node.js static syntax & module resolution tests (`tests/frontend_tests/`).
+- **Conventions:**
+  - **Python:** `snake_case` functions/variables, strict type hints, PEP 257 docstrings, chained exceptions with `from err`, module-level named constants for business rates and thresholds.
+  - **JavaScript:** `camelCase` functions/variables, exported functions documented with JSDoc, schema-versioned client store (`v1`).
+  - **Quality & Complexity:** All services adhere to low cyclomatic complexity (`C901 <= 10`), isolated single-purpose helpers, and zero magic number literals (`PLR2004`).
+
+---
+
+## 9. Security & Accessibility (WCAG 2.1 AA)
 - **Security:**
   - In-memory sliding-window IP rate limiter (`RATE_LIMIT_PER_MIN`) with proxy hop resolution (`TRUSTED_PROXY_COUNT`) and automatic memory eviction.
   - Strict security headers (`Content-Security-Policy`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`).
@@ -188,6 +204,6 @@ node --test tests/frontend_tests/*.mjs
 
 ---
 
-## 9. Known Limitations
+## 10. Known Limitations
 - Multi-day multi-city logistics (e.g. destination weddings spanning 3 cities) are modeled as single consolidated event budgets.
 - Currencies are strictly in Indian Rupees (INR); multi-currency conversion is out of scope.
