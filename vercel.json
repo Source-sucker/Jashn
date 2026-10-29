@@ -4,10 +4,6 @@
     "api/index.py": {
       "includeFiles": "{web/**,public/**}",
       "maxDuration": 30
-    },
-    "app/main.py": {
-      "includeFiles": "{web/**,public/**}",
-      "maxDuration": 30
     }
   },
   "headers": [
@@ -37,22 +33,10 @@
       ]
     }
   ],
-  "rewrites": [
+  "routes": [
     {
-      "source": "/api/(.*)",
-      "destination": "/api/index.py"
-    },
-    {
-      "source": "/docs",
-      "destination": "/api/index.py"
-    },
-    {
-      "source": "/openapi.json",
-      "destination": "/api/index.py"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/api/index.py"
+      "src": "/(.*)",
+      "dest": "/api/index.py"
     }
   ]
 }
