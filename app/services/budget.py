@@ -54,12 +54,160 @@ CATEGORY_LABELS = {
 }
 
 
+def _find_top_matched_priority(raw_weights: dict[str, float], priorities: list[str]) -> str | None:
+    """Finds the first category key matching user priorities."""
+    for p in priorities:
+        p_clean = p.lower().strip()
+        for cat_key in raw_weights:
+            if p_clean in cat_key or cat_key in p_clean:
+                return cat_key
+    return None
+
+
+def _adjust_priority_weights(
+    raw_weights: dict[str, float],
+    floors: dict[str, float],
+    priorities: list[str],
+) -> dict[str, float]:
+    """Adjusts category weights based on user priorities while respecting minimum floors."""
+    adjusted_weights = dict(raw_weights)
+    if not priorities:
+        return adjusted_weights
+
+    top_p = _find_top_matched_priority(raw_weights, priorities)
+    if top_p and top_p in adjusted_weights:
+        boost = adjusted_weights[top_p] * PRIORITY_BOOST_FACTOR
+        adjusted_weights[top_p] += boost
+        other_keys = [k for k in adjusted_weights if k != top_p]
+        if other_keys:
+            reduction_per_cat = boost / len(other_keys)
+            for k in other_keys:
+                min_fl = floors.get(k, DEFAULT_FLOOR_PCT + 0.01)
+                adjusted_weights[k] = max(min_fl, adjusted_weights[k] - reduction_per_cat)
+
+    weight_sum = sum(adjusted_weights.values())
+    if weight_sum > 0:
+        for k in adjusted_weights:
+            adjusted_weights[k] = adjusted_weights[k] / weight_sum
+
+    return adjusted_weights
+
+
+def _balance_discrete_units(
+    base_units: dict[str, int],
+    fractions: dict[str, float],
+    unlocked_keys: list[str],
+    rem_units: int,
+) -> None:
+    """Redistributes remainder discrete units across categories according to fraction magnitudes."""
+    if rem_units < 0:
+        sorted_by_frac_asc = sorted(unlocked_keys, key=lambda k: fractions[k])
+        for k in sorted_by_frac_asc:
+            reduction = min(abs(rem_units), max(0, base_units[k] - 1))
+            base_units[k] -= reduction
+            rem_units += reduction
+            if rem_units >= 0:
+                break
+    elif rem_units > 0:
+        sorted_by_frac_desc = sorted(unlocked_keys, key=lambda k: fractions[k], reverse=True)
+        for i in range(rem_units):
+            k = sorted_by_frac_desc[i % len(sorted_by_frac_desc)]
+            base_units[k] += 1
+
+
+def _distribute_allocations(
+    adjusted_weights: dict[str, float],
+    floors: dict[str, float],
+    allocable_budget: int,
+    locked_categories: dict[str, int],
+) -> tuple[dict[str, int], int]:
+    """Distributes allocable budget to 100-rupee units using largest-remainder algorithm."""
+    category_allocations: dict[str, int] = {}
+    locked_total = 0
+    unlocked_keys: list[str] = []
+    unlocked_weight_sum = 0.0
+
+    for k, weight in adjusted_weights.items():
+        if k in locked_categories:
+            amt = locked_categories[k]
+            locked_total += amt
+            category_allocations[k] = amt
+        else:
+            unlocked_keys.append(k)
+            unlocked_weight_sum += weight
+
+    remaining_for_unlocked = max(0, allocable_budget - locked_total)
+    odd_rupees = 0
+
+    if unlocked_keys:
+        if unlocked_weight_sum <= 0:
+            unlocked_weight_sum = 1.0
+
+        total_units = remaining_for_unlocked // ROUNDING_UNIT
+        odd_rupees = remaining_for_unlocked % ROUNDING_UNIT
+
+        base_units: dict[str, int] = {}
+        fractions: dict[str, float] = {}
+
+        for k in unlocked_keys:
+            norm_w = adjusted_weights[k] / unlocked_weight_sum
+            tu = norm_w * total_units
+            bu = int(math.floor(tu))
+            min_floor_units = int(math.ceil((floors.get(k, DEFAULT_FLOOR_PCT) * allocable_budget) / ROUNDING_UNIT))
+            if bu < min_floor_units and total_units >= min_floor_units * len(unlocked_keys):
+                bu = min_floor_units
+            base_units[k] = bu
+            fractions[k] = tu - bu
+
+        assigned_units = sum(base_units.values())
+        rem_units = total_units - assigned_units
+        _balance_discrete_units(base_units, fractions, unlocked_keys, rem_units)
+
+        for k in unlocked_keys:
+            category_allocations[k] = base_units[k] * ROUNDING_UNIT
+
+    return category_allocations, odd_rupees
+
+
+def _evaluate_feasibility(
+    total_budget: int,
+    guest_count: int,
+    template: dict,
+) -> tuple[int, str, str]:
+    """Calculates per-guest spend and evaluates budget feasibility status and reasoning."""
+    per_guest_spend = total_budget // max(1, guest_count)
+    benchmarks = template.get("benchmark_per_guest", {"tier1": 1500, "tier2": 1000, "tier3": 750})
+    bench_val = benchmarks.get("tier2", 1000)
+
+    if per_guest_spend >= bench_val * FEASIBILITY_COMFORTABLE_MULTIPLIER:
+        return (
+            per_guest_spend,
+            "comfortable",
+            f"At ₹{per_guest_spend:,}/guest, your budget is comfortable. You have ample room for full hospitality, "
+            f"premium catering live counters, and high-quality photography."
+        )
+    if per_guest_spend >= bench_val * FEASIBILITY_TIGHT_MULTIPLIER:
+        return (
+            per_guest_spend,
+            "tight",
+            f"At ₹{per_guest_spend:,}/guest, your budget is tight but feasible. Focus on package deals for venue and decor, "
+            f"and keep the menu curated rather than multi-cuisine."
+        )
+    return (
+        per_guest_spend,
+        "unrealistic",
+        f"At ₹{per_guest_spend:,}/guest, this budget is unrealistic for a full {template.get('label', 'event')} with {guest_count} guests. "
+        f"Standard catering and basic venue alone typically require at least ₹{bench_val:,}/guest. "
+        f"Consider trimming guest count or switching to a community/home venue."
+    )
+
+
 def calculate_budget(
     total_budget: int,
     guest_count: int,
     event_type: str = "wedding",
     priorities: list[str] | None = None,
-    city: str = "Tier 2 City",
+    city: str = "Tier 2 City",  # noqa: ARG001
     locked_categories: dict[str, int] | None = None
 ) -> BudgetReport:
     """
@@ -80,119 +228,23 @@ def calculate_budget(
     floors: dict[str, float] = dict(template.get("floors", {}))
     contingency_pct: float = float(template.get("contingency_pct", 0.08))
 
-    # Priority Weight Adjustment
-    # Top priority gets up to +20% boost, lowest priority gets up to -15% reduction
-    adjusted_weights = dict(raw_weights)
-    if priorities:
-        # Match priority strings to category keys
-        matched_priorities = []
-        for p in priorities:
-            p_clean = p.lower().strip()
-            for cat_key in raw_weights:
-                if (p_clean in cat_key or cat_key in p_clean) and cat_key not in matched_priorities:
-                    matched_priorities.append(cat_key)
-                    break
+    adjusted_weights = _adjust_priority_weights(raw_weights, floors, priorities)
 
-        if matched_priorities:
-            top_p = matched_priorities[0]
-            if top_p in adjusted_weights:
-                boost = adjusted_weights[top_p] * PRIORITY_BOOST_FACTOR
-                adjusted_weights[top_p] += boost
-                # Distribute reduction across non-priority categories while respecting floors
-                other_keys = [k for k in adjusted_weights if k != top_p]
-                if other_keys:
-                    reduction_per_cat = boost / len(other_keys)
-                    for k in other_keys:
-                        min_fl = floors.get(k, DEFAULT_FLOOR_PCT + 0.01)
-                        adjusted_weights[k] = max(min_fl, adjusted_weights[k] - reduction_per_cat)
-
-    # Normalize category weights to sum to 1.0
-    weight_sum = sum(adjusted_weights.values())
-    for k in adjusted_weights:
-        adjusted_weights[k] = adjusted_weights[k] / weight_sum
-
-    # Calculate contingency amount in units of 100
-    # Reserve is rounded to nearest 100
     raw_contingency = total_budget * contingency_pct
     contingency_amount = max(MIN_CONTINGENCY_AMOUNT, int(round(raw_contingency / ROUNDING_UNIT) * ROUNDING_UNIT))
     allocable_budget = total_budget - contingency_amount
 
-    # Handle locked categories (e.g. during replanning)
-    locked_total = 0
-    unlocked_keys = []
-    unlocked_weight_sum = 0.0
-    for k in adjusted_weights:
-        if k in locked_categories:
-            locked_total += locked_categories[k]
-        else:
-            unlocked_keys.append(k)
-            unlocked_weight_sum += adjusted_weights[k]
+    category_allocations, odd_rupees = _distribute_allocations(
+        adjusted_weights, floors, allocable_budget, locked_categories
+    )
+    contingency_amount += odd_rupees
 
-    remaining_for_unlocked = max(0, allocable_budget - locked_total)
-
-    # Largest-remainder allocation for unlocked categories to nearest Rs 100
-    category_allocations: dict[str, int] = {}
-    for k, amt in locked_categories.items():
-        if k in adjusted_weights:
-            category_allocations[k] = amt
-
-    if unlocked_keys:
-        if unlocked_weight_sum <= 0:
-            unlocked_weight_sum = 1.0
-
-        # Number of 100-rupee units to distribute
-        total_units = remaining_for_unlocked // ROUNDING_UNIT
-        odd_rupees = remaining_for_unlocked % ROUNDING_UNIT
-
-        target_units: dict[str, float] = {}
-        base_units: dict[str, int] = {}
-        fractions: dict[str, float] = {}
-
-        for k in unlocked_keys:
-            norm_w = adjusted_weights[k] / unlocked_weight_sum
-            tu = norm_w * total_units
-            target_units[k] = tu
-            bu = int(math.floor(tu))
-            # Check floor in units
-            min_floor_units = int(math.ceil((floors.get(k, DEFAULT_FLOOR_PCT) * allocable_budget) / ROUNDING_UNIT))
-            if bu < min_floor_units and total_units >= min_floor_units * len(unlocked_keys):
-                bu = min_floor_units
-            base_units[k] = bu
-            fractions[k] = tu - bu
-
-        assigned_units = sum(base_units.values())
-        rem_units = total_units - assigned_units
-
-        # If base units overshot due to floors, adjust down gracefully
-        if rem_units < 0:
-            sorted_by_frac_asc = sorted(unlocked_keys, key=lambda k: fractions[k])
-            for k in sorted_by_frac_asc:
-                reduction = min(abs(rem_units), max(0, base_units[k] - 1))
-                base_units[k] -= reduction
-                rem_units += reduction
-                if rem_units >= 0:
-                    break
-
-        # Distribute remaining positive units by largest fraction
-        if rem_units > 0:
-            sorted_by_frac_desc = sorted(unlocked_keys, key=lambda k: fractions[k], reverse=True)
-            for i in range(rem_units):
-                k = sorted_by_frac_desc[i % len(sorted_by_frac_desc)]
-                base_units[k] += 1
-
-        for k in unlocked_keys:
-            category_allocations[k] = base_units[k] * ROUNDING_UNIT
-
-        # Any odd single rupees (< 100) are added to contingency so total is EXACT
-        contingency_amount += odd_rupees
-
-    # Build BudgetCategoryAllocation list
     alloc_items: list[BudgetCategoryAllocation] = []
     subtotal = 0
     for k, amt in category_allocations.items():
         subtotal += amt
         pct = round((amt / total_budget) * 100.0, 1) if total_budget > 0 else 0.0
-        floor_amt = int(floors.get(k, 0.02) * allocable_budget)
+        floor_amt = int(floors.get(k, DEFAULT_FLOOR_PCT) * allocable_budget)
         alloc_items.append(
             BudgetCategoryAllocation(
                 category_id=k,
@@ -206,7 +258,6 @@ def calculate_budget(
             )
         )
 
-    # Add Contingency as an explicit category so the breakdown sums to 100%
     contingency_pct_final = round((contingency_amount / total_budget) * 100.0, 1) if total_budget > 0 else 0.0
     alloc_items.append(
         BudgetCategoryAllocation(
@@ -221,30 +272,9 @@ def calculate_budget(
         )
     )
 
-    # Feasibility Evaluation
-    per_guest_spend = total_budget // max(1, guest_count)
-    benchmarks = template.get("benchmark_per_guest", {"tier1": 1500, "tier2": 1000, "tier3": 750})
-    bench_val = benchmarks.get("tier2", 1000)
-
-    if per_guest_spend >= bench_val * FEASIBILITY_COMFORTABLE_MULTIPLIER:
-        feasibility_status = "comfortable"
-        feasibility_reason = (
-            f"At ₹{per_guest_spend:,}/guest, your budget is comfortable. You have ample room for full hospitality, "
-            f"premium catering live counters, and high-quality photography."
-        )
-    elif per_guest_spend >= bench_val * FEASIBILITY_TIGHT_MULTIPLIER:
-        feasibility_status = "tight"
-        feasibility_reason = (
-            f"At ₹{per_guest_spend:,}/guest, your budget is tight but feasible. Focus on package deals for venue and decor, "
-            f"and keep the menu curated rather than multi-cuisine."
-        )
-    else:
-        feasibility_status = "unrealistic"
-        feasibility_reason = (
-            f"At ₹{per_guest_spend:,}/guest, this budget is unrealistic for a full {template.get('label', 'event')} with {guest_count} guests. "
-            f"Standard catering and basic venue alone typically require at least ₹{bench_val:,}/guest. "
-            f"Consider trimming guest count or switching to a community/home venue."
-        )
+    per_guest_spend, feasibility_status, feasibility_reason = _evaluate_feasibility(
+        total_budget, guest_count, template
+    )
 
     return BudgetReport(
         total_budget=total_budget,
