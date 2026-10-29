@@ -1,6 +1,6 @@
 import math
 
-from app.models.schemas import PlanResponse, ReplanResponse, TradeoffOption
+from app.models.schemas import BudgetReport, PlanResponse, ReplanResponse, TradeoffOption
 from app.services.budget import calculate_budget
 from app.services.timeline import calculate_timeline
 from app.services.vendors import build_vendor_checklist
@@ -20,6 +20,84 @@ DECOR_REDUCTION_RATE: float = 0.35
 ENT_REDUCTION_RATE: float = 0.30
 #: Fraction of catering allocation to save in the catering-tier trade-off.
 CATERING_REDUCTION_RATE: float = 0.15
+
+
+def _generate_tradeoff_options(
+    new_budget: int,
+    new_guests: int,
+    new_budget_report: BudgetReport,
+) -> list[TradeoffOption]:
+    """Generates deterministic tradeoff options based on budget thresholds and allocations."""
+    tradeoff_options: list[TradeoffOption] = []
+
+    # Trade-off 1: Guest List Optimization
+    if new_guests > MIN_GUESTS_FOR_TRIM:
+        trim_candidates = max(5, int(math.ceil(new_guests * GUEST_TRIM_RATE)))
+        trim_pct = round((trim_candidates / new_guests) * 100)
+        guest_saving = trim_candidates * (new_budget // new_guests)
+        guest_saving_rounded = int(round(guest_saving / 100.0) * 100)
+        tradeoff_options.append(
+            TradeoffOption(
+                id="tradeoff_trim_guests",
+                title=f"Trim Guest List by ~{trim_pct}% ({trim_candidates} Attendees)",
+                impact_type="guest_reduction",
+                numeric_saving=guest_saving_rounded,
+                description=(
+                    f"Trimming {trim_candidates} guests (from {new_guests} to {new_guests - trim_candidates}) "
+                    f"frees up an estimated ₹{guest_saving_rounded:,} in catering and favor costs, "
+                    f"raising your per-guest spending back to a comfortable level."
+                ),
+                assumption_note=f"Estimated savings based on an average allocation of ₹{new_budget // new_guests:,} per attendee. Actual savings depend on caterer minimum plate guarantees.",
+                pros=["Immediate direct reduction in catering and seating costs", "Allows higher hospitality quality for closest circle"],
+                cons=["Requires difficult family conversations on secondary invites"],
+                applied_changes={"guest_count": new_guests - trim_candidates}
+            )
+        )
+
+    # Trade-off 2: Decor & Entertainment Streamlining
+    decor_alloc = next((c.allocated_amount for c in new_budget_report.categories if "decor" in c.category_id), 0)
+    ent_alloc = next((c.allocated_amount for c in new_budget_report.categories if "entertainment" in c.category_id), 0)
+    decor_saving = int(round((decor_alloc * DECOR_REDUCTION_RATE + ent_alloc * ENT_REDUCTION_RATE) / 100.0) * 100)
+    if decor_saving > MIN_TRADEOFF_SAVING_INR:
+        tradeoff_options.append(
+            TradeoffOption(
+                id="tradeoff_simplify_decor",
+                title="Adopt Minimalist Sustainable Decor & Local Talent (~30% Decor Savings)",
+                impact_type="decor_simplification",
+                numeric_saving=decor_saving,
+                description=(
+                    f"Streamlining heavy structural staging and floral props to focus on fairy lights, seasonal marigolds, "
+                    f"and curated Spotify/live acoustic sets saves an estimated ₹{decor_saving:,} without affecting food or venue quality."
+                ),
+                assumption_note="Estimated 30-35% decor reduction assumes replacing custom metal/wood fabrication with reusable floral and fabric elements.",
+                pros=["Cuts fabrication costs drastically", "Modern aesthetic with lower environmental waste"],
+                cons=["Less opulent stage backdrop and fewer grand mechanical entries"],
+                applied_changes={"budget_reduction": decor_saving}
+            )
+        )
+
+    # Trade-off 3: Catering Tier & Meal Timing Adjustment
+    catering_alloc = next((c.allocated_amount for c in new_budget_report.categories if "catering" in c.category_id), 0)
+    catering_saving = int(round((catering_alloc * CATERING_REDUCTION_RATE) / 100.0) * 100)
+    if catering_saving > MIN_TRADEOFF_SAVING_INR:
+        tradeoff_options.append(
+            TradeoffOption(
+                id="tradeoff_catering_tier",
+                title="Shift to Curated Regional Live-Counters (~15% Catering Savings)",
+                impact_type="catering_tier",
+                numeric_saving=catering_saving,
+                description=(
+                    f"Replacing an overflowing 40-item generic buffet with a tight, high-flavor 18-item signature regional menu "
+                    f"with 2 interactive live chaat/dosa counters saves an estimated ₹{catering_saving:,} while delighting guests."
+                ),
+                assumption_note="Estimated 15% menu savings assumes fixed-item live stations rather than high-wastage multi-course spread.",
+                pros=["Guests remember hotter, fresher food with faster counter service", "Zero food wastage"],
+                cons=["Fewer total varieties on the dessert and salad tables"],
+                applied_changes={"catering_saving": catering_saving}
+            )
+        )
+
+    return tradeoff_options
 
 
 def compute_replan(
@@ -105,74 +183,7 @@ def compute_replan(
     )
 
     # 5. Compute Engine-Calculated Trade-Off Options
-    tradeoff_options: list[TradeoffOption] = []
-
-    # Trade-off 1: Guest List Optimization
-    if new_guests > MIN_GUESTS_FOR_TRIM:
-        trim_candidates = max(5, int(math.ceil(new_guests * GUEST_TRIM_RATE)))
-        trim_pct = round((trim_candidates / new_guests) * 100)
-        guest_saving = trim_candidates * (new_budget // new_guests)
-        guest_saving_rounded = int(round(guest_saving / 100.0) * 100)
-        tradeoff_options.append(
-            TradeoffOption(
-                id="tradeoff_trim_guests",
-                title=f"Trim Guest List by ~{trim_pct}% ({trim_candidates} Attendees)",
-                impact_type="guest_reduction",
-                numeric_saving=guest_saving_rounded,
-                description=(
-                    f"Trimming {trim_candidates} guests (from {new_guests} to {new_guests - trim_candidates}) "
-                    f"frees up an estimated ₹{guest_saving_rounded:,} in catering and favor costs, "
-                    f"raising your per-guest spending back to a comfortable level."
-                ),
-                assumption_note=f"Estimated savings based on an average allocation of ₹{new_budget // new_guests:,} per attendee. Actual savings depend on caterer minimum plate guarantees.",
-                pros=["Immediate direct reduction in catering and seating costs", "Allows higher hospitality quality for closest circle"],
-                cons=["Requires difficult family conversations on secondary invites"],
-                applied_changes={"guest_count": new_guests - trim_candidates}
-            )
-        )
-
-    # Trade-off 2: Decor & Entertainment Streamlining
-    decor_alloc = next((c.allocated_amount for c in new_budget_report.categories if "decor" in c.category_id), 0)
-    ent_alloc = next((c.allocated_amount for c in new_budget_report.categories if "entertainment" in c.category_id), 0)
-    decor_saving = int(round((decor_alloc * DECOR_REDUCTION_RATE + ent_alloc * ENT_REDUCTION_RATE) / 100.0) * 100)
-    if decor_saving > MIN_TRADEOFF_SAVING_INR:
-        tradeoff_options.append(
-            TradeoffOption(
-                id="tradeoff_simplify_decor",
-                title="Adopt Minimalist Sustainable Decor & Local Talent (~30% Decor Savings)",
-                impact_type="decor_simplification",
-                numeric_saving=decor_saving,
-                description=(
-                    f"Streamlining heavy structural staging and floral props to focus on fairy lights, seasonal marigolds, "
-                    f"and curated Spotify/live acoustic sets saves an estimated ₹{decor_saving:,} without affecting food or venue quality."
-                ),
-                assumption_note="Estimated 30-35% decor reduction assumes replacing custom metal/wood fabrication with reusable floral and fabric elements.",
-                pros=["Cuts fabrication costs drastically", "Modern aesthetic with lower environmental waste"],
-                cons=["Less opulent stage backdrop and fewer grand mechanical entries"],
-                applied_changes={"budget_reduction": decor_saving}
-            )
-        )
-
-    # Trade-off 3: Catering Tier & Meal Timing Adjustment
-    catering_alloc = next((c.allocated_amount for c in new_budget_report.categories if "catering" in c.category_id), 0)
-    catering_saving = int(round((catering_alloc * CATERING_REDUCTION_RATE) / 100.0) * 100)
-    if catering_saving > MIN_TRADEOFF_SAVING_INR:
-        tradeoff_options.append(
-            TradeoffOption(
-                id="tradeoff_catering_tier",
-                title="Shift to Curated Regional Live-Counters (~15% Catering Savings)",
-                impact_type="catering_tier",
-                numeric_saving=catering_saving,
-                description=(
-                    f"Replacing an overflowing 40-item generic buffet with a tight, high-flavor 18-item signature regional menu "
-                    f"with 2 interactive live chaat/dosa counters saves an estimated ₹{catering_saving:,} while delighting guests."
-                ),
-                assumption_note="Estimated 15% menu savings assumes fixed-item live stations rather than high-wastage multi-course spread.",
-                pros=["Guests remember hotter, fresher food with faster counter service", "Zero food wastage"],
-                cons=["Fewer total varieties on the dessert and salad tables"],
-                applied_changes={"catering_saving": catering_saving}
-            )
-        )
+    tradeoff_options = _generate_tradeoff_options(new_budget, new_guests, new_budget_report)
 
     # Updated EventBrief
     new_brief = old_brief.model_copy(

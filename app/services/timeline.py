@@ -12,6 +12,64 @@ def load_event_templates() -> dict:
         return json.load(f)
 
 
+def _build_task_instance(
+    t: dict,
+    event_date: date,
+    today: date,
+    days_remaining: int,
+    *,
+    is_compressed: bool,
+    compression_ratio: float,
+    completed_ids: set[str],
+) -> tuple[TimelineTask, bool, bool]:
+    """Calculates due date, rush status, and urgency for a single timeline task."""
+    tid = str(t.get("id"))
+    base_lead = int(t.get("lead_days_before_event", 14))
+
+    if days_remaining <= 0:
+        actual_offset = 0
+        task_due = event_date
+        is_rush = True
+    elif is_compressed:
+        actual_offset = max(0, min(days_remaining - 1, int(round(base_lead * compression_ratio))))
+        task_due = event_date - timedelta(days=actual_offset)
+        is_rush = actual_offset < base_lead
+    else:
+        actual_offset = base_lead
+        task_due = event_date - timedelta(days=actual_offset)
+        is_rush = False
+
+    is_completed = tid in completed_ids
+    is_urgent = (task_due <= today) and (not is_completed)
+
+    task = TimelineTask(
+        id=tid,
+        title=t.get("title", "Task"),
+        phase=t.get("phase", "General Planning"),
+        due_date=task_due.strftime("%Y-%m-%d"),
+        days_before_event=actual_offset,
+        priority=t.get("priority", "medium"),
+        category=t.get("category", "planning"),
+        depends_on=list(t.get("depends_on", [])),
+        is_completed=is_completed,
+        is_rush=is_rush,
+        is_urgent=is_urgent,
+        is_blocked=False,
+        notes=t.get("notes")
+    )
+    return task, is_completed, is_urgent
+
+
+def _resolve_blocked_dependencies(tasks: list[TimelineTask], completed_lookup: dict[str, bool]) -> None:
+    """Marks incomplete tasks as blocked if any prerequisite task is not yet completed."""
+    for task in tasks:
+        if task.depends_on and not task.is_completed:
+            for parent_id in task.depends_on:
+                if not completed_lookup.get(parent_id, False):
+                    task.is_blocked = True
+                    break
+
+
 def calculate_timeline(
     event_date_str: str,
     event_type: str = "wedding",
@@ -35,7 +93,6 @@ def calculate_timeline(
     try:
         event_date = datetime.strptime(event_date_str, "%Y-%m-%d").date()
     except Exception:
-        # Fallback if invalid date string
         event_date = today + timedelta(days=60)
         event_date_str = event_date.strftime("%Y-%m-%d")
 
@@ -46,7 +103,6 @@ def calculate_timeline(
     completed_ids = set(completed_task_ids or [])
     task_templates = list(template.get("task_templates", []))
 
-    # Incorporate custom or AI-suggested tasks if provided
     if custom_tasks:
         for ct in custom_tasks:
             if isinstance(ct, dict) and "id" in ct and "title" in ct:
@@ -57,54 +113,20 @@ def calculate_timeline(
     overdue_lookup: dict[str, bool] = {}
 
     for t in task_templates:
-        tid = str(t.get("id"))
-        base_lead = int(t.get("lead_days_before_event", 14))
-
-        if days_remaining <= 0:
-            # Event is today or past
-            actual_offset = 0
-            task_due = event_date
-            is_rush = True
-        elif is_compressed:
-            actual_offset = max(0, min(days_remaining - 1, int(round(base_lead * compression_ratio))))
-            task_due = event_date - timedelta(days=actual_offset)
-            is_rush = actual_offset < base_lead
-        else:
-            actual_offset = base_lead
-            task_due = event_date - timedelta(days=actual_offset)
-            is_rush = False
-
-        is_completed = tid in completed_ids
-        is_urgent = (task_due <= today) and (not is_completed)
-        completed_lookup[tid] = is_completed
-        overdue_lookup[tid] = is_urgent
-
-        computed_tasks.append(
-            TimelineTask(
-                id=tid,
-                title=t.get("title", "Task"),
-                phase=t.get("phase", "General Planning"),
-                due_date=task_due.strftime("%Y-%m-%d"),
-                days_before_event=actual_offset,
-                priority=t.get("priority", "medium"),
-                category=t.get("category", "planning"),
-                depends_on=list(t.get("depends_on", [])),
-                is_completed=is_completed,
-                is_rush=is_rush,
-                is_urgent=is_urgent,
-                is_blocked=False,
-                notes=t.get("notes")
-            )
+        task, is_comp, is_urg = _build_task_instance(
+            t,
+            event_date,
+            today,
+            days_remaining,
+            is_compressed=is_compressed,
+            compression_ratio=compression_ratio,
+            completed_ids=completed_ids,
         )
+        completed_lookup[task.id] = is_comp
+        overdue_lookup[task.id] = is_urg
+        computed_tasks.append(task)
 
-    # Resolve blocked dependencies
-    for task in computed_tasks:
-        if task.depends_on and not task.is_completed:
-            for parent_id in task.depends_on:
-                # If parent task is incomplete AND either overdue or scheduled after this task
-                if not completed_lookup.get(parent_id, False):
-                    task.is_blocked = True
-                    break
+    _resolve_blocked_dependencies(computed_tasks, completed_lookup)
 
     # Sort tasks chronologically by due date ascending, then by priority
     priority_order = {"high": 0, "medium": 1, "low": 2}
